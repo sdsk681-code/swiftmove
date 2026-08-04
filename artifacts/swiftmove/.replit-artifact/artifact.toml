@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "SwiftMove & Clean"
+description = "Professional UK house removals and cleaning services website. Customers can browse services, see pricing, and book a move with online deposit payment via Stripe. Supports English and Arabic with bilingual UI."
+version = "1.0.0"
+id = "artifacts/swiftmove"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25562
+
+[services.development]
+run = "pnpm --filter @workspace/swiftmove run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/swiftmove", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/swiftmove/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25562"
+BASE_PATH = "/"
