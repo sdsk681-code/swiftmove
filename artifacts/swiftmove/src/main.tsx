@@ -8,8 +8,10 @@ import "./index.css";
 
 const queryClient = new QueryClient();
 
-// API server is at /api-server path in this workspace
-const apiBase = `${window.location.origin}/api-server/api/trpc`;
+// VITE_TRPC_URL overrides the default (set to /trpc on Netlify, or any external URL)
+const apiBase =
+  import.meta.env.VITE_TRPC_URL ||
+  `${window.location.origin}/api-server/api/trpc`;
 
 const trpcClient = trpc.createClient({
   links: [
