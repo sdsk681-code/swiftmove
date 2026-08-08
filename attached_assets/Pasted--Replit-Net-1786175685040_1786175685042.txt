@@ -1,0 +1,79 @@
+آه، هسا وضحت الصورة تمامًا. المشكلة مش بالتسجيل نفسه؛ التسجيل يعمل على Replit، لكن بعد النشر على Netlify يصير خطأ ويوقف الانتقال.
+
+ومن الصورة عندك الخطأ واضح:
+
+setStripeAvailable is not defined
+
+يعني في جزء من صفحة الحجز/الدفع يتم استدعاء setStripeAvailable لكنه غير معرّف في بيئة الإنتاج.
+
+والأهم: المشروع اللي عندك مش React عادي فقط؛ من الملفات اللي أرسلتها واضح أنه Next.js + React + TypeScript (app/, layout.tsx, page.tsx, next.config...).
+
+ابعث للـ Agent هذا النص حرفيًا:
+
+أريد منك الآن عمل Production/Netlify Audit كامل للمشروع، وليس فقط التأكد أنه يعمل على Replit.
+المشكلة الحالية:
+- Booking flow يعمل بشكل صحيح داخل Replit.
+- عند نشر المشروع على Netlify، عند الضغط على Continue to Payment تظهر أخطاء ولا يكمل.
+- الخطأ الظاهر حاليًا هو:
+  setStripeAvailable is not defined
+المطلوب منك:
+1. افحص المشروع كاملًا من البداية للنهاية.
+2. تتبع Booking Flow كامل:
+   /book
+   → بيانات العميل
+   → اختيار التاريخ والوقت
+   → إنشاء booking
+   → Continue to Payment
+   → Stripe/payment page
+3. ابحث عن كل استخدام لـ:
+   setStripeAvailable
+   stripeAvailable
+   Stripe
+   payment
+   وأي state/function/import متعلق بها.
+4. أصلح الخطأ من جذره، وليس بإخفاء الخطأ أو وضع fallback مؤقت.
+5. تأكد أن جميع state variables وfunctions معرفة في نفس scope الصحيح، وأن جميع imports صحيحة.
+6. افحص الفرق بين Development/Replit وProduction/Netlify، لأن الكود يعمل في Replit لكنه يفشل بعد النشر.
+7. افحص جميع Environment Variables المطلوبة في Netlify، وأسماءها، واستخدامها من Client/Server بشكل صحيح.
+8. لا تضع أي secret keys داخل client-side code.
+9. افحص Next.js client/server components، خصوصًا أي ملف يستخدم Stripe أو browser APIs أو environment variables.
+10. افحص Netlify configuration وbuild configuration وredirects/rewrites إن وجدت.
+11. افحص API routes/server functions وتأكد أنها تعمل في Netlify وليس فقط في Replit.
+12. شغّل:
+    pnpm run typecheck
+    pnpm run build
+    ثم اختبر Production build.
+13. لا تعتبر المهمة مكتملة لمجرد أن build نجح؛ يجب اختبار Continue to Payment فعليًا في Production.
+14. افحص Console وNetwork errors في Production وابحث عن أي خطأ JavaScript أو API بعد الضغط على Continue to Payment.
+15. أصلح جميع الأخطاء التي تمنع إكمال الحجز والدفع.
+16. لا تغيّر تصميم الموقع أو الـ UI أو الـ UX إلا إذا كان ضروريًا لإصلاح الخطأ.
+17. لا تحذف أي functionality موجودة.
+18. بعد الإصلاح، اعمل مراجعة نهائية للمشروع كاملًا وتأكد أنه يعمل على Netlify بنفس سلوك Replit.
+مهم جدًا:
+لا تقل لي "يعمل" بناءً على Replit فقط.
+الهدف النهائي هو:
+Production على Netlify → /book → Continue to Payment → صفحة الدفع بدون errors.
+وفي النهاية أعطني تقريرًا مختصرًا:
+- الأخطاء التي وجدتها
+- سبب كل خطأ
+- الملفات التي تم تعديلها
+- ما الذي تم إصلاحه
+- نتيجة typecheck
+- نتيجة build
+- نتيجة اختبار Production/Netlify
+
+وفي حال أعطاك الـ Agent سؤال أو طلب منك تختار شيء، لا تخليه يبدأ شغل جديد على ترتيب الملفات. حاليًا الأولوية هي إصلاح Production/Netlify booking + payment.
+
+وبالنسبة للترتيب اللي عمله سابقًا: نعم، الهيكل اللي عرضه لك:
+
+src/
+├── pages/
+├── components/
+│   └── ui/
+├── hooks/
+├── lib/
+└── contexts/
+
+مرتب من ناحية الفكرة، لكن لا أنصح بنقل المشروع إلى هذا الهيكل الآن إذا مشروعك أصلاً Next.js App Router ويعمل. نقل app/ إلى pages/ ممكن يسبب مشاكل أكبر. الأفضل أولًا تثبيت نسخة Production الحالية وإصلاح Netlify، وبعدها ننظف ونرتب الملفات بدون تخريب المشروع.
+
+والخطأ الموجود بالصورة ليس خطأ ترتيب ملفات؛ هو خطأ JavaScript/runtime حقيقي لازم يتصلح.
