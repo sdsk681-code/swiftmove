@@ -114,7 +114,7 @@ export default function Book() {
     toLine2: z.string().optional(),
     toCity: z.string().min(2, b.errors.toAddress),
     toPostcode: z.string().regex(UK_POSTCODE_REGEX, "Please enter a valid UK postcode (e.g. SW1A 1AA)"),
-    date: z.string().min(1, b.errors.date),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, b.errors.date),
     time: z.string().min(1, b.errors.time),
     requirements: z.string().optional(),
   });
@@ -213,6 +213,17 @@ export default function Book() {
         moveTime: values.time,
         fromAddress,
         toAddress,
+        fromLine1: values.fromLine1,
+        fromLine2: values.fromLine2 ?? "",
+        fromCity: values.fromCity,
+        fromPostcode: values.fromPostcode,
+        toLine1: values.toLine1,
+        toLine2: values.toLine2 ?? "",
+        toCity: values.toCity,
+        toPostcode: values.toPostcode,
+        packageLabel: selectedPackage?.label ?? "",
+        packagePrice: selectedPackage?.from ?? "",
+        depositAmount,
         notes: values.requirements,
       });
 
@@ -866,12 +877,28 @@ export default function Book() {
                     <div className="p-6">
                       <Form {...form}>
                         <div className="grid gap-4 md:grid-cols-2">
-                          <FormField control={form.control} name="date" render={({ field }) => (
-                            <FormItem><FormLabel>{b.dateLabel}</FormLabel>
-                              <FormControl><Input type="date" min={new Date().toISOString().split("T")[0]} {...field} data-testid="input-date" /></FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )} />
+                          <FormField control={form.control} name="date" render={({ field }) => {
+                            const d = new Date();
+                            const localMin = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+                            return (
+                              <FormItem><FormLabel>{b.dateLabel}</FormLabel>
+                                <FormControl><Input
+                                  type="date"
+                                  min={localMin}
+                                  value={field.value}
+                                  name={field.name}
+                                  ref={field.ref}
+                                  onBlur={field.onBlur}
+                                  onChange={e => {
+                                    const v = e.target.value;
+                                    field.onChange(/^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "");
+                                  }}
+                                  data-testid="input-date"
+                                /></FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            );
+                          }} />
                           <FormField control={form.control} name="time" render={({ field }) => (
                             <FormItem><FormLabel>{b.timeLabel}</FormLabel>
                               <Select onValueChange={field.onChange} value={field.value}>
@@ -904,7 +931,7 @@ export default function Book() {
 
                   {/* Error + Submit */}
                   <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)}>
+                    <form noValidate onSubmit={form.handleSubmit(onSubmit)}>
                       <BookingFlowError message={apiError} />
                       <Button
                         type="submit"
