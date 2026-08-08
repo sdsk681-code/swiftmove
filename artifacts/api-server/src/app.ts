@@ -34,7 +34,7 @@ app.use("/api", router);
 // Temporary: serve project ZIP for download
 app.get("/api/download/swiftmove-project.zip", (_req, res) => {
   const path = require("path");
-  const file = path.resolve("/home/runner/workspace/swiftmove-project.zip");
+  const file = path.resolve("/home/runner/workspace/swiftmove-src.zip");
   res.download(file, "swiftmove-project.zip");
 });
 
