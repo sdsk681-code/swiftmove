@@ -1,27 +1,26 @@
 /**
- * Netlify serverless function: proxies all /trpc/* requests to the tRPC router.
- *
- * Required environment variables in Netlify dashboard:
- *   DATABASE_URL         — PostgreSQL connection string
- *   STRIPE_SECRET_KEY    — Stripe secret key (optional: only for payment intent creation)
- *   TELEGRAM_BOT_TOKEN   — Telegram notifications (optional)
- *   TELEGRAM_CHAT_ID     — Telegram chat ID (optional)
- *
- * The netlify.toml redirect sends /trpc/* → /.netlify/functions/trpc/:splat
+ * Netlify Function (v2) — wraps the tRPC router as a serverless endpoint.
+ * Handles /trpc/* and /api/trpc/* (both paths configured in netlify.toml redirects).
  */
-
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "../../artifacts/api-server/src/routers.js";
 
-export default async (request: Request): Promise<Response> => {
+export default async (req: Request) => {
+  const url = new URL(req.url);
+  // Detect which base path the request came through
+  const endpoint = url.pathname.startsWith("/api/trpc") ? "/api/trpc" : "/trpc";
+
   return fetchRequestHandler({
-    endpoint: "/.netlify/functions/trpc",
-    req: request,
+    endpoint,
+    req,
     router: appRouter,
-    // None of the procedures access context — safe to pass empty object
-    createContext: () => ({}) as any,
-    onError({ error, path }) {
-      console.error(`tRPC error on ${path ?? "unknown"}:`, error.message);
+    createContext: () => ({}),
+    onError: ({ error }) => {
+      console.error("tRPC error:", error);
     },
   });
+};
+
+export const config = {
+  path: "/trpc/*",
 };

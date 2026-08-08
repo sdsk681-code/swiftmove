@@ -1,7 +1,7 @@
 kind = "web"
 previewPath = "/"
 title = "SwiftMove & Clean"
-description = "UK house removals visitor website. Customers browse services, get pricing, and book moves with Stripe deposit payment. Integrated with Firebase for visitor tracking and dashboard data sync."
+description = "Professional UK house removals and cleaning services website. Customers can browse services, see pricing, and book a move with online deposit payment via Stripe. Supports English and Arabic with bilingual UI."
 version = "1.0.0"
 id = "artifacts/swiftmove"
 router = "path"

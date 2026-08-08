@@ -12,7 +12,14 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
-# Send all /trpc/* requests to the serverless function
+# Send /api/trpc/* requests to the serverless function (frontend default)
+[[redirects]]
+  from = "/api/trpc/*"
+  to = "/.netlify/functions/trpc/:splat"
+  status = 200
+  force = true
+
+# Send /trpc/* requests to the serverless function (VITE_TRPC_URL override)
 [[redirects]]
   from = "/trpc/*"
   to = "/.netlify/functions/trpc/:splat"
