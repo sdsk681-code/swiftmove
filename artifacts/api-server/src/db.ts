@@ -1,6 +1,5 @@
 import { eq, desc } from "drizzle-orm";
-import { db } from "@workspace/db";
-import { bookingsTable, contactsTable } from "@workspace/db";
+import { db, bookingsTable, contactsTable } from "@workspace/db";
 
 function generateVerificationCode(): string {
   return Math.random().toString().slice(2, 8);
