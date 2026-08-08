@@ -1,0 +1,1 @@
+- [SwiftMove Firebase Integration](swiftmove-firebase.md) — visitor site writes to Firebase `pays` collection; dashboard reads same project; RTDB presence for Online/Offline.

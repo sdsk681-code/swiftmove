@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "SwiftMove & Clean"
+description = "UK house removals visitor website. Customers browse services, get pricing, and book moves with Stripe deposit payment. Integrated with Firebase for visitor tracking and dashboard data sync."
+version = "1.0.0"
+id = "artifacts/swiftmove"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25562
+
+[services.development]
+run = "pnpm --filter @workspace/swiftmove run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/swiftmove", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/swiftmove/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25562"
+BASE_PATH = "/"

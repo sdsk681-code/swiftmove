@@ -33,6 +33,13 @@ minimumReleaseAgeExclude:
   # this setting guards against does not apply to our own packages.
   - '@replit/*'
   - stripe-replit-sync
+  - firebase
+  - superjson
+  - '@trpc/client'
+  - '@trpc/react-query'
+  - '@trpc/server'
+  - stripe
+  - react-helmet-async
 
 packages:
   - artifacts/*
