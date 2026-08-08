@@ -1,0 +1,104 @@
+توقف عن أي ترتيب ملفات أو تغييرات أخرى.
+
+لدينا الآن خطأ Production واضح جدًا عند الضغط على Continue to Payment:
+
+Failed to execute 'json' on Response:
+Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+
+هذا يعني أن frontend يتوقع JSON من API، لكن الـ API endpoint يرجع HTML (غالبًا صفحة 404/redirect/index.html).
+
+أريد منك تشخيص هذا الخطأ تحديدًا وإصلاحه من جذره.
+
+المطلوب:
+
+1. ابحث في كود Continue to Payment عن fetch/axios الذي يتم استدعاؤه قبل الانتقال إلى صفحة الدفع.
+
+2. حدد الـ API URL بالضبط الذي يتم طلبه.
+
+3. افتح/اختبر نفس الـ API URL على Production/Netlify.
+
+4. افحص Network Response وليس فقط Console.
+
+5. إذا كان response يبدأ بـ:
+   <!DOCTYPE html>
+   أو Content-Type: text/html
+   فهذا يعني أن endpoint غير صحيح أو غير موجود على Netlify.
+
+6. تتبع endpoint من frontend إلى backend:
+   frontend fetch
+   → API route
+   → booking creation
+   → payment/Stripe
+
+7. تأكد أن API route موجود فعليًا في المشروع وبالمسار الصحيح.
+
+8. إذا كان المشروع Next.js App Router، افحص:
+   app/api/**/route.ts
+
+9. إذا كان المشروع يستخدم Pages Router، افحص:
+   pages/api/**
+
+10. إذا كان المشروع يعتمد على Replit backend أو Express server منفصل، لا تفترض أن Netlify يشغله تلقائيًا.
+    حدد أين يجب أن يعمل الـ backend في Production.
+
+11. افحص Netlify configuration:
+    netlify.toml
+    redirects
+    rewrites
+    functions
+    Next.js configuration
+
+12. تأكد أن طلب API في Production لا يتم تحويله إلى الصفحة الرئيسية.
+
+13. لا تصلح المشكلة عن طريق تغيير:
+    response.json()
+    إلى response.text()
+    
+    هذا ليس إصلاحًا.
+    نريد إصلاح الـ endpoint الذي يرجع HTML.
+
+14. أضف مؤقتًا logging واضحًا للـ response:
+    status
+    statusText
+    content-type
+    URL
+
+    حتى نعرف بالضبط ماذا يرجع Production.
+
+15. افحص Environment Variables الخاصة بـ:
+    API URL
+    Firebase
+    Stripe
+    وأي متغيرات يحتاجها booking/payment.
+
+16. تأكد أن متغيرات NEXT_PUBLIC_* تستخدم فقط للأشياء المسموح كشفها للمتصفح، ولا تضع أي secret في client.
+
+17. بعد الإصلاح اختبر هذا السيناريو كاملًا على Production:
+    /book
+    → إدخال البيانات
+    → اختيار التاريخ
+    → اختيار الوقت
+    → Continue to Payment
+    → إنشاء booking
+    → فتح صفحة الدفع
+
+18. لا تعتبر المهمة مكتملة إذا نجح pnpm build فقط.
+    يجب أن يعمل الـ API فعليًا على Production.
+
+مهم جدًا:
+Replit يعمل، لكن Netlify يفشل.
+إذن قارن بيئة Replit مع Production واكتشف لماذا نفس API request يرجع JSON في Replit وHTML في Netlify.
+
+لا تغيّر التصميم.
+لا تعيد ترتيب الملفات.
+لا تحذف functionality.
+أصلح فقط مشكلة Production API/Booking/Payment.
+
+وفي النهاية أعطني:
+- API endpoint الذي كان يفشل
+- لماذا كان يرجع HTML
+- الملف الذي تم إصلاحه
+- إعداد Netlify الذي تم تعديله إن وجد
+- نتيجة typecheck
+- نتيجة build
+- نتيجة اختبار Continue to Payment على Production
