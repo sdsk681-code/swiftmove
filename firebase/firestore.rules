@@ -1,0 +1,50 @@
+rules_version = '2';
+
+// Firebase project: swiftmove-l
+// Deploy: Firebase Console → Firestore Database → Rules (paste this file)
+// Prerequisite: enable BOTH providers in Firebase Console → Authentication:
+//   1. Anonymous  — used automatically by the visitor site (ownership model)
+//   2. Email/Password (or another real provider) — used by the admin dashboard
+//
+// Ownership model:
+// - The visitor site signs in anonymously and stamps `ownerUid` on its
+//   tracking doc in `pays`. Only that visitor can read/update their own doc.
+// - Admins (any NON-anonymous authenticated user) can read, list, update and
+//   delete everything.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    function isOwner() {
+      return request.auth != null
+        && resource.data.ownerUid == request.auth.uid;
+    }
+
+    match /pays/{docId} {
+      // Visitors read only their own doc (getDoc restore, payment-step and
+      // chat onSnapshot listeners); admins read everything.
+      allow get: if isOwner() || isAdmin();
+      allow list: if isAdmin();
+
+      // Creation must stamp the creator's uid as owner.
+      allow create: if request.auth != null
+        && request.resource.data.ownerUid == request.auth.uid;
+
+      // Owners may update their own doc but can never re-assign ownership;
+      // admins may update anything (e.g. cardStatus, chatAgentMsgs).
+      allow update: if isAdmin()
+        || (isOwner() && request.resource.data.ownerUid == resource.data.ownerUid);
+
+      allow delete: if isAdmin();
+    }
+
+    // Everything else is locked down.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

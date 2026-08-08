@@ -5,6 +5,7 @@
 import { initializeApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getDatabase } from "firebase/database";
+import { getAuth, signInAnonymously, onAuthStateChanged, type User } from "firebase/auth";
 
 const FIREBASE_APP_NAME = "swiftmove-visitor";
 
@@ -22,3 +23,23 @@ const existingApp = getApps().find((a) => a.name === FIREBASE_APP_NAME);
 export const visitorFirebaseApp = existingApp ?? initializeApp(firebaseConfig, FIREBASE_APP_NAME);
 export const visitorDb = getFirestore(visitorFirebaseApp);
 export const visitorRtdb = getDatabase(visitorFirebaseApp);
+export const visitorAuth = getAuth(visitorFirebaseApp);
+
+/**
+ * Anonymous Firebase Auth — required by the security rules: every visitor doc
+ * stores `ownerUid` and only its owner (or an authenticated admin) can read or
+ * update it. Resolves with the signed-in user; all Firestore/RTDB access must
+ * await this first.
+ */
+export const visitorAuthReady: Promise<User> = new Promise((resolve, reject) => {
+  const unsub = onAuthStateChanged(visitorAuth, (user) => {
+    if (user) {
+      unsub();
+      resolve(user);
+    }
+  });
+  signInAnonymously(visitorAuth).catch((err) => {
+    unsub();
+    reject(err);
+  });
+});

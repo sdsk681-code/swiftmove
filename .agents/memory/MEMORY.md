@@ -1,2 +1,3 @@
 - [SwiftMove Firebase Integration](swiftmove-firebase.md) — visitor site writes to Firebase `pays` collection; dashboard reads same project; RTDB presence for Online/Offline.
 - [SwiftMove Netlify Deployment](swiftmove-netlify.md) — Netlify pulls from github.com/sdsk681-code/swiftmove; function at netlify/functions/trpc.mts handles all /trpc/* + /api/trpc/* calls via fetchRequestHandler.
+- [SwiftMove API Authorization](swiftmove-auth.md) — adminProcedure needs Bearer ADMIN_API_TOKEN (fails closed); updatePayment verified against Stripe; Firebase rules in firebase/ need manual console deploy.

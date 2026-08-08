@@ -1,4 +1,5 @@
-import { router, publicProcedure } from "./trpc";
+import { router, publicProcedure, adminProcedure } from "./trpc";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
   createBooking,
@@ -49,30 +50,76 @@ export const appRouter = router({
         return booking;
       }),
 
-    list: publicProcedure.query(() => getBookings()),
+    list: adminProcedure.query(() => getBookings()),
 
-    getById: publicProcedure
+    getById: adminProcedure
       .input(z.object({ id: z.number() }))
       .query(({ input }) => getBookingById(input.id)),
 
+    // Public: called by the visitor after paying. The client-supplied status is
+    // never trusted — when Stripe is configured the real status is fetched from
+    // Stripe and the payment intent must belong to this booking. "refunded" can
+    // only be set by an admin (via Stripe dashboard / adminProcedure elsewhere).
     updatePayment: publicProcedure
       .input(
         z.object({
           bookingId: z.number(),
           paymentIntentId: z.string(),
-          paymentStatus: z.enum(["pending", "succeeded", "failed", "refunded"]),
+          paymentStatus: z.enum(["pending", "succeeded", "failed"]),
         }),
       )
       .mutation(async ({ input }) => {
-        await updateBookingPayment(
-          input.bookingId,
-          input.paymentIntentId,
-          input.paymentStatus,
-        );
+        const booking = await getBookingById(input.bookingId);
+        if (!booking) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Booking not found" });
+        }
+        if (booking.paymentStatus === "succeeded" || booking.paymentStatus === "refunded") {
+          // Payment state is final for public callers.
+          return { success: true };
+        }
+
+        let status: "pending" | "succeeded" | "failed";
+        const stripeKey = process.env.STRIPE_SECRET_KEY;
+        if (stripeKey) {
+          // Stripe mode: the client-supplied status is NEVER used. The payment
+          // intent must exist, belong to this booking, and match the booking's
+          // deposit amount; the status is derived from Stripe alone.
+          if (!input.paymentIntentId.startsWith("pi_")) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "A valid Stripe payment intent ID is required",
+            });
+          }
+          const Stripe = (await import("stripe")).default;
+          const stripe = new Stripe(stripeKey);
+          const intent = await stripe.paymentIntents.retrieve(input.paymentIntentId);
+          if (
+            intent.metadata?.booking_id !== String(input.bookingId) ||
+            intent.amount !== booking.depositAmount
+          ) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Payment intent does not match this booking",
+            });
+          }
+          status =
+            intent.status === "succeeded"
+              ? "succeeded"
+              : intent.status === "canceled"
+                ? "failed"
+                : "pending";
+        } else {
+          // Fallback mode (no Stripe configured): no external source of truth
+          // exists, so only allow the pending → succeeded/failed transition
+          // guarded above.
+          status = input.paymentStatus;
+        }
+
+        await updateBookingPayment(input.bookingId, input.paymentIntentId, status);
         return { success: true };
       }),
 
-    updateStatus: publicProcedure
+    updateStatus: adminProcedure
       .input(z.object({ id: z.number(), status: z.string() }))
       .mutation(async ({ input }) => {
         await updateBookingStatus(input.id, input.status);
@@ -102,10 +149,16 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const stripeKey = process.env.STRIPE_SECRET_KEY;
         if (!stripeKey) throw new Error("Stripe not configured");
+        // Amount is bound to the booking's server-side deposit amount — the
+        // client-supplied amount is only sanity-checked, never trusted.
+        const booking = await getBookingById(input.bookingId);
+        if (!booking) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Booking not found" });
+        }
         const Stripe = (await import("stripe")).default;
         const stripe = new Stripe(stripeKey);
         const paymentIntent = await stripe.paymentIntents.create({
-          amount: input.amount,
+          amount: booking.depositAmount,
           currency: "gbp",
           metadata: {
             service: input.service,
@@ -134,9 +187,9 @@ export const appRouter = router({
         return contact;
       }),
 
-    list: publicProcedure.query(() => getContacts()),
+    list: adminProcedure.query(() => getContacts()),
 
-    markRead: publicProcedure
+    markRead: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         await markContactRead(input.id);

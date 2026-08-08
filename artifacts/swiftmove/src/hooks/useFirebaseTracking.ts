@@ -14,7 +14,7 @@ import {
   onDisconnect,
   serverTimestamp as rtdbServerTimestamp,
 } from "firebase/database";
-import { visitorDb, visitorRtdb } from "@/lib/firebase-visitor";
+import { visitorDb, visitorRtdb, visitorAuthReady } from "@/lib/firebase-visitor";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Module-level singletons so the doc is only created once per page load,
@@ -49,6 +49,9 @@ const getDeviceInfo = () => {
 };
 
 async function createOrRestoreVisitorDoc(): Promise<string> {
+  // Security rules require an authenticated (anonymous) user owning the doc.
+  const user = await visitorAuthReady;
+
   // Try to restore existing session doc
   const stored = sessionStorage.getItem(SESSION_KEY);
   if (stored) {
@@ -67,6 +70,10 @@ async function createOrRestoreVisitorDoc(): Promise<string> {
   const referenceNumber = `SM-${Date.now()}`;
 
   const docRef = await addDoc(collection(visitorDb, "pays"), {
+    // Ownership — security rules only allow this visitor (or an admin) to
+    // read/update the doc.
+    ownerUid: user.uid,
+
     // Fields that make the record visible in swiftmove-L dashboard
     ownerName: "",
     phoneNumber: "",

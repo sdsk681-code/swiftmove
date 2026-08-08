@@ -4,6 +4,7 @@
  */
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "../../artifacts/api-server/src/routers.js";
+import { createFetchContext } from "../../artifacts/api-server/src/trpc.js";
 
 export default async (req: Request) => {
   const url = new URL(req.url);
@@ -20,7 +21,7 @@ export default async (req: Request) => {
     endpoint,
     req,
     router: appRouter,
-    createContext: () => ({}),
+    createContext: () => createFetchContext({ req }),
     onError: ({ error }) => {
       console.error("tRPC error:", error);
     },
