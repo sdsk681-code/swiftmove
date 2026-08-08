@@ -278,7 +278,7 @@ export default function Book() {
     toLine2: z.string().optional(),
     toCity: z.string().min(2, b.errors.toAddress),
     toPostcode: z.string().regex(UK_POSTCODE_REGEX, "Please enter a valid UK postcode (e.g. SW1A 1AA)"),
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, b.errors.date),
+    date: z.string().min(1, b.errors.date),
     time: z.string().min(1, b.errors.time),
     requirements: z.string().optional(),
   });
@@ -1257,8 +1257,9 @@ export default function Book() {
                                   ref={field.ref}
                                   onBlur={field.onBlur}
                                   onChange={e => {
-                                    const v = e.target.value;
-                                    field.onChange(/^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "");
+                                    // Normalize YYYY/MM/DD or YYYY.MM.DD → YYYY-MM-DD
+                                    const v = e.target.value.trim().replace(/[\/\.]/g, "-");
+                                    field.onChange(v);
                                   }}
                                   data-testid="input-date"
                                 /></FormControl>
