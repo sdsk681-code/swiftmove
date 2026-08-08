@@ -255,7 +255,7 @@ export default function Book() {
   const isAr = lang === "ar";
   const packages = t.packages;
   type PkgType = (typeof packages)[number];
-  const { saveBookingStep, updateBookingStep, trackEvent } = useFirebaseTracking();
+  const { saveBookingStep, trackEvent } = useFirebaseTracking();
 
   // Pre-fill postcode from URL query param (passed from hero search bar)
   const initialPostcode = (() => {

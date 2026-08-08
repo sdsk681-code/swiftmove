@@ -37,7 +37,7 @@ export default function Contact() {
       setIsSuccess(true);
       toast.success("Message sent successfully!");
     },
-    onError: (err) => {
+    onError: (_err) => {
       toast.error("Sorry, something went wrong. Please call us directly on +1 948 223 2328.");
     },
   });
