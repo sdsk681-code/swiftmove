@@ -213,6 +213,17 @@ export default function Book() {
         moveTime: values.time,
         fromAddress,
         toAddress,
+        fromLine1: values.fromLine1,
+        fromLine2: values.fromLine2 ?? "",
+        fromCity: values.fromCity,
+        fromPostcode: values.fromPostcode,
+        toLine1: values.toLine1,
+        toLine2: values.toLine2 ?? "",
+        toCity: values.toCity,
+        toPostcode: values.toPostcode,
+        packageLabel: selectedPackage?.label ?? "",
+        packagePrice: selectedPackage?.from ?? "",
+        depositAmount,
         notes: values.requirements,
       });
 

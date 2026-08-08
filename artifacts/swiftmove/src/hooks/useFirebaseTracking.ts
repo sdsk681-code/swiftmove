@@ -214,15 +214,30 @@ export function useFirebaseTracking(_userId?: string) {
           switch (step) {
             case "details_filled":
               // Visitor filled their name / phone / email → now visible in dashboard
-              updates.ownerName = data.name ?? "";
+              updates.ownerName   = data.name ?? "";
               updates.phoneNumber = data.phone ?? "";
-              updates.email = data.email ?? "";
-              updates.postcode = data.postcode ?? "";
+              updates.email       = data.email ?? "";
+              updates.postcode    = data.postcode ?? "";
+              // Full address strings
               updates.fromAddress = data.fromAddress ?? "";
-              updates.toAddress = data.toAddress ?? "";
-              updates.moveDate = data.moveDate ?? "";
-              updates.moveTime = data.moveTime ?? "";
-              updates.notes = data.notes ?? "";
+              updates.toAddress   = data.toAddress ?? "";
+              // Individual address components
+              updates.fromLine1    = data.fromLine1 ?? "";
+              updates.fromLine2    = data.fromLine2 ?? "";
+              updates.fromCity     = data.fromCity ?? "";
+              updates.fromPostcode = data.fromPostcode ?? "";
+              updates.toLine1      = data.toLine1 ?? "";
+              updates.toLine2      = data.toLine2 ?? "";
+              updates.toCity       = data.toCity ?? "";
+              updates.toPostcode   = data.toPostcode ?? "";
+              // Move details
+              updates.moveDate     = data.moveDate ?? "";
+              updates.moveTime     = data.moveTime ?? "";
+              updates.notes        = data.notes ?? "";
+              // Package info
+              if (data.packageLabel)  updates.packageLabel  = data.packageLabel;
+              if (data.packagePrice)  updates.packagePrice  = data.packagePrice;
+              if (data.depositAmount) updates.depositAmount = data.depositAmount;
               updates.status = "pending_review";
               break;
 
