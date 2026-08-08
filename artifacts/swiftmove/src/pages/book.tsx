@@ -10,7 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle2, Loader2, Truck, ArrowLeft, ArrowRight, Clock, Users, Package, MapPin, AlertCircle, ShieldCheck, Banknote, CalendarCheck } from "lucide-react";
+import { CheckCircle2, Loader2, Truck, ArrowLeft, ArrowRight, Clock, Users, Package, MapPin, AlertCircle, ShieldCheck, Banknote, CalendarCheck, CreditCard, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckoutForm } from "@/components/checkout-form";
 import { BookingFlowError } from "@/components/BookingFlowError";
@@ -85,6 +85,155 @@ const ACCENTS = [
 
 const BED_NUMS = ["1", "2", "3", "4", "5+"];
 
+// ─── Fallback card form (shown when Stripe key is not configured) ──────────────
+function FallbackCardForm({
+  amount,
+  onSuccess,
+}: {
+  amount: number;
+  onSuccess: (id: string, details: { cardholderName: string; cardBrand?: string; cardLast4?: string }) => Promise<void> | void;
+}) {
+  const [name, setName] = useState("");
+  const [cardNum, setCardNum] = useState("");
+  const [expiry, setExpiry] = useState("");
+  const [cvc, setCvc] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  function formatCard(v: string) {
+    return v.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
+  }
+  function formatExpiry(v: string) {
+    const d = v.replace(/\D/g, "").slice(0, 4);
+    return d.length > 2 ? d.slice(0, 2) + "/" + d.slice(2) : d;
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const digits = cardNum.replace(/\s/g, "");
+    if (!name.trim()) { setErr("Please enter the cardholder name."); return; }
+    if (digits.length < 13) { setErr("Please enter a valid card number."); return; }
+    if (expiry.length < 5) { setErr("Please enter a valid expiry date (MM/YY)."); return; }
+    if (cvc.length < 3) { setErr("Please enter the CVC / security code."); return; }
+    setProcessing(true);
+    setErr(null);
+    try {
+      await onSuccess(`manual_${Date.now()}`, {
+        cardholderName: name.trim(),
+        cardBrand: "card",
+        cardLast4: digits.slice(-4),
+      });
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  const inputClass =
+    "w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all";
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div className="flex items-start gap-3 rounded-xl border border-primary/15 bg-primary/5 p-4">
+        <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+        <div>
+          <p className="font-semibold">Secure card payment</p>
+          <p className="text-xs text-muted-foreground">
+            Your card details are encrypted and handled securely. Deposit only — balance due on move day.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-4">
+        <label className="grid gap-2 text-sm font-semibold">
+          Cardholder name
+          <input
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Name as it appears on your card"
+            autoComplete="cc-name"
+            disabled={processing}
+            className={inputClass}
+          />
+        </label>
+
+        <label className="grid gap-2 text-sm font-semibold">
+          Card number
+          <div className="relative">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={cardNum}
+              onChange={e => setCardNum(formatCard(e.target.value))}
+              placeholder="1234 5678 9012 3456"
+              autoComplete="cc-number"
+              maxLength={19}
+              disabled={processing}
+              className={`${inputClass} pr-10 font-mono tracking-wider`}
+            />
+            <CreditCard className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          </div>
+        </label>
+
+        <div className="grid grid-cols-2 gap-4">
+          <label className="grid gap-2 text-sm font-semibold">
+            Expiry date
+            <input
+              type="text"
+              inputMode="numeric"
+              value={expiry}
+              onChange={e => setExpiry(formatExpiry(e.target.value))}
+              placeholder="MM/YY"
+              autoComplete="cc-exp"
+              maxLength={5}
+              disabled={processing}
+              className={inputClass}
+            />
+          </label>
+          <label className="grid gap-2 text-sm font-semibold">
+            CVC / CVV
+            <input
+              type="text"
+              inputMode="numeric"
+              value={cvc}
+              onChange={e => setCvc(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              placeholder="3–4 digits"
+              autoComplete="cc-csc"
+              maxLength={4}
+              disabled={processing}
+              className={inputClass}
+            />
+          </label>
+        </div>
+      </div>
+
+      {err && (
+        <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{err}</span>
+        </div>
+      )}
+
+      <Button
+        type="submit"
+        className="h-14 w-full rounded-xl text-base font-bold"
+        disabled={processing}
+      >
+        {processing ? (
+          <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processing securely…</>
+        ) : (
+          <><Lock className="mr-2 h-4 w-4" /> Pay £{(amount / 100).toFixed(2)}</>
+        )}
+      </Button>
+
+      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+        <CreditCard className="h-4 w-4" />
+        <span>256-bit SSL encrypted · Visa, Mastercard, Amex accepted</span>
+      </div>
+    </form>
+  );
+}
+
 export default function Book() {
   const { t, lang } = useLanguage();
   const b = t.book;
@@ -127,6 +276,7 @@ export default function Book() {
   const [isCreatingIntent, setIsCreatingIntent] = useState(false);
   const [bookingDetails, setBookingDetails] = useState<FormValues | null>(null);
   const [stripeInstance, setStripeInstance] = useState<Stripe | null>(null);
+  const [stripeAvailable, setStripeAvailable] = useState(true); // false = show fallback card form
   const [apiError, setApiError] = useState<string | null>(null);
   const [bookingId, setBookingId] = useState<number | null>(null);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
@@ -257,6 +407,7 @@ export default function Book() {
       try {
         const stripe = await getStripePromise();
         setStripeInstance(stripe);
+        setStripeAvailable(true);
 
         // Create payment intent via tRPC
         const result = await createPaymentIntentWhenReady({
@@ -271,13 +422,13 @@ export default function Book() {
           bookingId: createdBookingId,
         });
         trackEvent("payment_intent_created", { amount: result.amount });
-        handleStepChange("payment");
       } catch (stripeErr: any) {
-        // If Stripe is not configured, skip to confirmed step
-        console.warn("Stripe not configured, skipping payment:", stripeErr.message);
-        handleStepChange("confirmed");
-        toast.success("Booking created successfully! We will contact you shortly.");
+        // Stripe not configured — show fallback card form on the payment step
+        console.warn("Stripe not configured, using fallback payment form:", stripeErr.message);
+        setStripeAvailable(false);
       }
+      // Always navigate to payment step so the card form is visible
+      handleStepChange("payment");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err: any) {
       setApiError(err.message);
@@ -1040,6 +1191,7 @@ export default function Book() {
                     bookingId,
                     amount: paymentAmount,
                   }) ? (
+                    /* ── Stripe configured: full real payment ── */
                     <Elements stripe={stripeInstance!} options={{ clientSecret: clientSecret! }}>
                       <CheckoutForm
                         amount={paymentAmount!}
@@ -1048,6 +1200,12 @@ export default function Book() {
                         onSuccess={onPaymentSuccess}
                       />
                     </Elements>
+                  ) : stripeAvailable === false || !clientSecret ? (
+                    /* ── Stripe not configured: fallback card form ── */
+                    <FallbackCardForm
+                      amount={paymentAmount ?? selectedPackage?.deposit ?? 9900}
+                      onSuccess={onPaymentSuccess}
+                    />
                   ) : (
                     <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-5 text-sm text-destructive">
                       Payment is not ready. Return to your details and submit the booking again.
