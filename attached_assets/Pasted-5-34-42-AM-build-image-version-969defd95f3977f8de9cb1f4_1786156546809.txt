@@ -1,0 +1,30 @@
+5:34:42 AM: build-image version: 969defd95f3977f8de9cb1f48802a7e6f3d8c0b3 (noble-new-builds)
+5:34:42 AM: buildbot version: 2aca7e86d0b37a7dabcc6c9662e9f7cffdfc48ef
+5:34:42 AM: Fetching cached dependencies
+5:34:42 AM: Starting to download cache of 172.7MB (Last modified: 2026-08-07 23:24:17 +0000 UTC)
+5:34:43 AM: Downloaded cache in 613ms
+5:34:47 AM: Extracted cache in 4.309s
+5:34:47 AM: Fetched cache in 5.005s
+5:34:47 AM: Starting to prepare the repo for build
+5:34:47 AM: Preparing Git Reference refs/heads/main
+5:34:48 AM: Custom publish path detected. Proceeding with the specified path: 'artifacts/swiftmove/dist/public'
+5:34:48 AM: Custom functions path detected. Proceeding with the specified path: 'netlify/functions'
+5:34:48 AM: Custom build command detected. Proceeding with the specified command: 'pnpm install && pnpm --filter @workspace/swiftmove run build'
+5:34:49 AM: Installing dependencies
+5:34:49 AM: mise ~/.config/mise/config.toml tools: python@3.14.3
+5:34:49 AM: mise ~/.config/mise/config.toml tools: ruby@3.4.8
+5:34:49 AM: mise ~/.config/mise/config.toml tools: go@1.26.2
+5:34:50 AM: v20.20.2 is already installed.
+5:34:50 AM: Now using node v20.20.2 (npm v10.8.2)
+5:34:50 AM: Enabling Node.js Corepack
+5:34:50 AM: pnpm workspaces detected
+5:34:51 AM: Failed during stage 'Install dependencies': dependency_installation script returned non-zero exit code: 1
+5:34:51 AM: Installing npm packages using pnpm version 10.30.3
+5:34:51 AM: Scope: all 9 workspace projects
+5:34:51 AM:  ERR_PNPM_OUTDATED_LOCKFILE  Cannot install with "frozen-lockfile" because pnpm-lock.yaml is not up to date with <ROOT>/artifacts/swiftmove/package.json
+5:34:51 AM: Note that in CI environments this setting is true by default. If you still need to run install in such cases, use "pnpm install --no-frozen-lockfile"
+5:34:51 AM:   Failure reason:
+5:34:51 AM:   specifiers in the lockfile don't match specifiers in package.json:
+5:34:51 AM: * 1 dependencies were added: firebase@^11.0.0
+5:34:51 AM: Error during pnpm install
+5:34:51 AM: Failing build: Failed to install dependencies
