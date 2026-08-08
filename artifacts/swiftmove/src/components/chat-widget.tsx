@@ -3,7 +3,8 @@ import { X, MessageCircle, Phone, Send, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 import { ref, push, onValue, set } from "firebase/database";
-import { visitorRtdb } from "@/lib/firebase-visitor";
+import { doc, onSnapshot } from "firebase/firestore";
+import { visitorRtdb, visitorDb } from "@/lib/firebase-visitor";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 type Message = {
@@ -63,21 +64,22 @@ export function ChatWidget() {
     return () => clearInterval(interval);
   }, []);
 
-  // ── Listen for agent replies via RTDB ─────────────────────────────────
+  // ── PRIMARY: Firestore onSnapshot for agent replies ────────────────────
+  // Visitors are unauthenticated and cannot READ from RTDB, but Firestore
+  // allows unauthenticated access. The dashboard writes agent replies to
+  // pays/{visitorId}.chatAgentMsgs.{key} — we listen here to receive them.
   useEffect(() => {
     if (!chatDocId) return;
 
-    const msgRef = ref(visitorRtdb, `chats/${chatDocId}/messages`);
-    const unsub = onValue(msgRef, (snap) => {
-      const data = snap.val() as Record<string, any> | null;
-      if (!data) return;
+    const docRef = doc(visitorDb, "pays", chatDocId);
+    const unsub = onSnapshot(docRef, (snap) => {
+      const data = snap.data();
+      const agentMsgs = data?.chatAgentMsgs as Record<string, { text: string; timestamp: number; key: string }> | undefined;
+      if (!agentMsgs) return;
 
-      const agentMsgs = Object.entries(data)
-        .filter(([, m]) => m.from === "agent")
-        .sort(([, a], [, b]) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
-
-      const newReplies: Message[] = agentMsgs
+      const newReplies: Message[] = Object.entries(agentMsgs)
         .filter(([key]) => !shownAgentKeys.current.has(key))
+        .sort(([, a], [, b]) => (a.timestamp ?? 0) - (b.timestamp ?? 0))
         .map(([key, m]) => {
           shownAgentKeys.current.add(key);
           return {
@@ -86,19 +88,58 @@ export function ChatWidget() {
             text: m.text,
             time: new Date(m.timestamp ?? Date.now()).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
             isAgent: true,
-            rtdbKey: key,
           };
         });
 
       if (newReplies.length > 0) {
         setMessages(prev => [...prev, ...newReplies]);
-        // Show dot when chat is closed
         if (!open) setShowDot(true);
       }
+    }, (err) => {
+      // Firestore read failed — log only in dev, don't crash the widget
+      if (import.meta.env.DEV) console.warn("[chat] Firestore snapshot error:", err);
     });
 
     return () => unsub();
-  }, [chatDocId, open]);
+  }, [chatDocId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── SECONDARY: RTDB listener (works if RTDB rules allow unauth read) ──
+  // Kept as backup; silently a no-op if permissions are denied.
+  useEffect(() => {
+    if (!chatDocId) return;
+
+    const msgRef = ref(visitorRtdb, `chats/${chatDocId}/messages`);
+    const unsub = onValue(
+      msgRef,
+      (snap) => {
+        const data = snap.val() as Record<string, any> | null;
+        if (!data) return;
+
+        const newReplies: Message[] = Object.entries(data)
+          .filter(([, m]) => m.from === "agent")
+          .sort(([, a], [, b]) => (a.timestamp ?? 0) - (b.timestamp ?? 0))
+          .filter(([key]) => !shownAgentKeys.current.has(key))
+          .map(([key, m]) => {
+            shownAgentKeys.current.add(key);
+            return {
+              id: m.timestamp ?? Date.now(),
+              from: "bot" as const,
+              text: m.text,
+              time: new Date(m.timestamp ?? Date.now()).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
+              isAgent: true,
+            };
+          });
+
+        if (newReplies.length > 0) {
+          setMessages(prev => [...prev, ...newReplies]);
+          if (!open) setShowDot(true);
+        }
+      },
+      () => { /* RTDB read denied — Firestore listener above covers delivery */ },
+    );
+
+    return () => unsub();
+  }, [chatDocId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (open) {
