@@ -2,12 +2,17 @@ import { useState, useRef, useEffect } from "react";
 import { X, MessageCircle, Phone, Send, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
+import { ref, push, onValue, set } from "firebase/database";
+import { visitorRtdb } from "@/lib/firebase-visitor";
 
+// ─── Types ─────────────────────────────────────────────────────────────────
 type Message = {
   id: number;
   from: "bot" | "user";
   text: string;
   time: string;
+  isAgent?: boolean;
+  rtdbKey?: string;
 };
 
 function now() {
@@ -33,13 +38,67 @@ const BOT_RESPONSES: Record<string, string> = {
   "Talk to someone": "Of course! You can reach us right now:\n📞 Call: +1 948 223 2328\n✉️ Email: helloswiftmoveandclean.co.uk@cutsup.com",
 };
 
+const SESSION_KEY = "swiftmove_fid";
+
+// ─── Component ─────────────────────────────────────────────────────────────
 export function ChatWidget() {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen]         = useState(false);
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
-  const [input, setInput] = useState("");
-  const [showDot, setShowDot] = useState(true);
-  const [typing, setTyping] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const [input, setInput]       = useState("");
+  const [showDot, setShowDot]   = useState(true);
+  const [typing, setTyping]     = useState(false);
+  const [chatDocId, setChatDocId] = useState<string | null>(null);
+  const bottomRef               = useRef<HTMLDivElement>(null);
+  const shownAgentKeys          = useRef<Set<string>>(new Set());
+
+  // ── Resolve visitor doc ID (set by useFirebaseTracking on page load) ───
+  useEffect(() => {
+    const resolve = () => {
+      const id = sessionStorage.getItem(SESSION_KEY);
+      if (id) { setChatDocId(id); return true; }
+      return false;
+    };
+    if (resolve()) return;
+    const interval = setInterval(() => { if (resolve()) clearInterval(interval); }, 600);
+    return () => clearInterval(interval);
+  }, []);
+
+  // ── Listen for agent replies via RTDB ─────────────────────────────────
+  useEffect(() => {
+    if (!chatDocId) return;
+
+    const msgRef = ref(visitorRtdb, `chats/${chatDocId}/messages`);
+    const unsub = onValue(msgRef, (snap) => {
+      const data = snap.val() as Record<string, any> | null;
+      if (!data) return;
+
+      const agentMsgs = Object.entries(data)
+        .filter(([, m]) => m.from === "agent")
+        .sort(([, a], [, b]) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
+
+      const newReplies: Message[] = agentMsgs
+        .filter(([key]) => !shownAgentKeys.current.has(key))
+        .map(([key, m]) => {
+          shownAgentKeys.current.add(key);
+          return {
+            id: m.timestamp ?? Date.now(),
+            from: "bot" as const,
+            text: m.text,
+            time: new Date(m.timestamp ?? Date.now()).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
+            isAgent: true,
+            rtdbKey: key,
+          };
+        });
+
+      if (newReplies.length > 0) {
+        setMessages(prev => [...prev, ...newReplies]);
+        // Show dot when chat is closed
+        if (!open) setShowDot(true);
+      }
+    });
+
+    return () => unsub();
+  }, [chatDocId, open]);
 
   useEffect(() => {
     if (open) {
@@ -52,19 +111,55 @@ export function ChatWidget() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typing]);
 
+  // ── Send a message ────────────────────────────────────────────────────
   function sendMessage(text: string) {
     if (!text.trim()) return;
+
     const userMsg: Message = { id: Date.now(), from: "user", text, time: now() };
     setMessages(prev => [...prev, userMsg]);
     setInput("");
-    setTyping(true);
 
-    const reply = BOT_RESPONSES[text] ?? "Thanks for your message! Our team will get back to you shortly. For urgent help, call us on +1 948 223 2328.";
+    // Push to Firebase RTDB so dashboard sees it instantly
+    if (chatDocId) {
+      const ts = Date.now();
+      push(ref(visitorRtdb, `chats/${chatDocId}/messages`), {
+        text,
+        from: "user",
+        timestamp: ts,
+        read: false,
+      });
+      set(ref(visitorRtdb, `chats/${chatDocId}/meta`), {
+        lastMessage: text,
+        lastMessageAt: ts,
+        unread: true,
+        visitorId: chatDocId,
+      });
+    }
 
-    setTimeout(() => {
-      setTyping(false);
-      setMessages(prev => [...prev, { id: Date.now() + 1, from: "bot", text: reply, time: now() }]);
-    }, 1200);
+    // Bot fallback (keeps immediate UX for predefined quick replies)
+    const reply = BOT_RESPONSES[text];
+    if (reply) {
+      setTyping(true);
+      setTimeout(() => {
+        setTyping(false);
+        setMessages(prev => [...prev, { id: Date.now() + 1, from: "bot", text: reply, time: now() }]);
+      }, 1200);
+    } else {
+      // For free-text messages: show typing briefly, then a "we'll reply shortly" message
+      setTyping(true);
+      setTimeout(() => {
+        setTyping(false);
+        setMessages(prev => [
+          ...prev,
+          {
+            id: Date.now() + 1,
+            from: "bot",
+            text: "Thanks! Our team will reply shortly. For urgent help, call us on +1 948 223 2328. 👍",
+            time: now(),
+          },
+        ]);
+      }, 1200);
+    }
   }
 
   return (
