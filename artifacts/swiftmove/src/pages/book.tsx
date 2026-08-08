@@ -250,9 +250,8 @@ function FallbackCardForm({
 }
 
 export default function Book() {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   const b = t.book;
-  const isAr = lang === "ar";
   const packages = t.packages;
   type PkgType = (typeof packages)[number];
   const { saveBookingStep, trackEvent } = useFirebaseTracking();
@@ -291,7 +290,6 @@ export default function Book() {
   const [isCreatingIntent, setIsCreatingIntent] = useState(false);
   const [bookingDetails, setBookingDetails] = useState<FormValues | null>(null);
   const [stripeInstance, setStripeInstance] = useState<Stripe | null>(null);
-  const [stripeAvailable, setStripeAvailable] = useState(true); // false = show fallback card form
   const [apiError, setApiError] = useState<string | null>(null);
   const [bookingId, setBookingId] = useState<number | null>(null);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
@@ -621,7 +619,6 @@ export default function Book() {
       try {
         const stripe = await getStripePromise();
         setStripeInstance(stripe);
-        setStripeAvailable(true);
 
         // Create payment intent via tRPC
         const result = await createPaymentIntentWhenReady({
@@ -637,9 +634,8 @@ export default function Book() {
         });
         trackEvent("payment_intent_created", { amount: result.amount });
       } catch (stripeErr: any) {
-        // Stripe not configured — show fallback card form on the payment step
+        // Stripe not configured — fallback card form shown via payStep mechanism
         console.warn("Stripe not configured, using fallback payment form:", stripeErr.message);
-        setStripeAvailable(false);
       }
       // Always navigate to payment step so the card form is visible
       handleStepChange("payment");
@@ -681,7 +677,6 @@ export default function Book() {
   const stepKeys: Step[] = ["package", "address", "details", "payment"];
   const stepLabels = [b.step1, "Address", b.step2, b.step3];
   const currentStepIndex = stepKeys.indexOf(step);
-  const accent = selectedIdx !== null ? ACCENTS[selectedIdx] : ACCENTS[2];
   const confirmationCopy = getBookingConfirmationCopy(paymentCompleted, b);
 
   return (
@@ -793,7 +788,7 @@ export default function Book() {
                   return (
                     <motion.button
                       key={pkg.label}
-                      onClick={() => { setSelectedPackage(pkg); setSelectedIdx(idx); }}
+                      onClick={() => handlePackageSelect(pkg, idx)}
                       data-testid={`card-package-${idx}`}
                       whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.99 }}

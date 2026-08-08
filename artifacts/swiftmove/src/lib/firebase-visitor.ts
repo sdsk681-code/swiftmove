@@ -2,7 +2,7 @@
 // Both projects use the SAME Firebase project (swiftmove-l)
 // so visitor data flows directly into the dashboard
 
-import { initializeApp, getApps, getApp } from "firebase/app";
+import { initializeApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getDatabase } from "firebase/database";
 

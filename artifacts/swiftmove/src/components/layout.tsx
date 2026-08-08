@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Phone, Truck, Clock, MessageCircle, Mail, ArrowRight } from "lucide-react";
+import { Menu, X, Phone, Truck, Clock, Mail, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChatWidget } from "./chat-widget";
 import { useLanguage } from "@/hooks/use-language";
