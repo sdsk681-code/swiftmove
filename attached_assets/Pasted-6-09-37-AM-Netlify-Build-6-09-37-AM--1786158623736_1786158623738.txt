@@ -1,0 +1,100 @@
+6:09:37 AM: Netlify Build                                                 
+6:09:37 AM: ────────────────────────────────────────────────────────────────
+6:09:37 AM: ​
+6:09:37 AM: ❯ Version
+6:09:37 AM:   @netlify/build 36.2.4
+6:09:37 AM: ​
+6:09:37 AM: ❯ Flags
+6:09:37 AM:   accountId: 6a42640bc493d055b315ab99
+6:09:37 AM:   baseRelDir: true
+6:09:37 AM:   buildId: 6a769dd360f64d0008798f9b
+6:09:37 AM:   deployId: 6a769dd360f64d0008798f9d
+6:09:37 AM: ​
+6:09:37 AM: ❯ Current directory
+6:09:37 AM:   /opt/build/repo
+6:09:37 AM: ​
+6:09:37 AM: ❯ Config file
+6:09:37 AM:   No config file was defined: using default values.
+6:09:37 AM: ​
+6:09:37 AM: ❯ Context
+6:09:37 AM:   production
+6:09:38 AM: ​
+6:09:38 AM: ❯ Using Next.js Runtime - v5.15.12
+6:09:38 AM: ​
+6:09:38 AM: ❯ Outdated plugins
+6:09:38 AM:    - @netlify/plugin-nextjs@5.15.12: latest version is 5.15.13
+6:09:38 AM:      To upgrade this plugin, please update its version in "package.json"
+6:09:40 AM: Next.js cache restored
+6:09:40 AM: ​
+6:09:40 AM: Build command from Netlify app                                
+6:09:40 AM: ────────────────────────────────────────────────────────────────
+6:09:40 AM: ​
+6:09:40 AM: $ npm run build
+6:09:40 AM: > emad-becare-dash@0.1.0 build
+6:09:40 AM: > next build
+6:09:41 AM:    ▲ Next.js 15.5.14
+6:09:41 AM:    Creating an optimized production build ...
+6:09:52 AM: Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+6:09:52 AM:   npx update-browserslist-db@latest
+6:09:52 AM:   Why you should do it regularly: https://github.com/browserslist/update-db#readme
+6:09:55 AM:  ✓ Compiled successfully in 11.9s
+6:09:55 AM:    Linting and checking validity of types ...
+6:10:01 AM: Failed during stage 'building site': Build script returned non-zero exit code: 2 (https://ntl.fyi/exit-code-2)
+6:10:01 AM: [BABEL] Note: The code generator has deoptimised the styling of /opt/build/repo/lib/pdf-stamp.ts as it exceeds the max of 500KB.
+6:10:01 AM: 
+6:10:01 AM: Failed to compile.
+6:10:01 AM: ./app/layout.tsx
+6:10:01 AM: 1:1  Warning: Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any').
+6:10:01 AM: ./components/data-bubble.tsx
+6:10:01 AM: 52:10  Warning: '_color' is defined but never used.  @typescript-eslint/no-unused-vars
+6:10:01 AM: 53:11  Warning: '_layout' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+6:10:01 AM: 142:11  Warning: 'holder' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+6:10:01 AM: 243:23  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+6:10:01 AM: 285:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+6:10:01 AM: ./components/settings-modal.tsx
+6:10:01 AM: 4:19  Warning: 'Trash2' is defined but never used.  @typescript-eslint/no-unused-vars
+6:10:01 AM: ./components/visitor-details.tsx
+6:10:01 AM: 8:3  Warning: 'convertHistoryToBubbles' is defined but never used.  @typescript-eslint/no-unused-vars
+6:10:01 AM: 12:3  Warning: 'handleCardApproval' is defined but never used.  @typescript-eslint/no-unused-vars
+6:10:01 AM: 13:3  Warning: 'handleCardRejection' is defined but never used.  @typescript-eslint/no-unused-vars
+6:10:01 AM: 18:3  Warning: 'handlePhoneOtpResend' is defined but never used.  @typescript-eslint/no-unused-vars
+6:10:01 AM: 46:10  Warning: 'cardsLayout' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+6:10:01 AM: 46:23  Warning: 'setCardsLayout' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+6:10:01 AM: 79:3  Error: React Hook "useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render.  react-hooks/rules-of-hooks
+6:10:01 AM: 91:6  Warning: React Hook useEffect has a missing dependency: 'chatOpen'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+6:10:01 AM: 93:3  Error: React Hook "useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+6:10:01 AM: 99:6  Warning: React Hook useEffect has a missing dependency: 'visitor.id'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+6:10:01 AM: 209:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+6:10:01 AM: ./components/visitor-sidebar.tsx
+6:10:01 AM: 194:3  Warning: 'onSidebarWidthChange' is defined but never used.  @typescript-eslint/no-unused-vars
+6:10:01 AM: ./lib/auth-context.tsx
+6:10:01 AM: 95:6  Warning: React Hook useEffect has a missing dependency: 'startSession'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+6:10:01 AM: ./lib/decrypt-utils.ts
+6:10:01 AM: 24:12  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+6:10:01 AM: ./lib/secure-utils.ts
+6:10:01 AM: 96:35  Warning: 'index' is defined but never used.  @typescript-eslint/no-unused-vars
+6:10:01 AM: info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+6:10:01 AM: ​
+6:10:01 AM: "build.command" failed                                        
+6:10:01 AM: ────────────────────────────────────────────────────────────────
+6:10:01 AM: ​
+6:10:01 AM:   Error message
+6:10:01 AM:   Command failed with exit code 1: npm run build (https://ntl.fyi/exit-code-1)
+6:10:01 AM: ​
+6:10:01 AM:   Error location
+6:10:01 AM:   In Build command from Netlify app:
+6:10:01 AM:   npm run build
+6:10:01 AM: ​
+6:10:01 AM:   Resolved config
+6:10:01 AM:   build:
+6:10:01 AM:     command: npm run build
+6:10:01 AM:     commandOrigin: ui
+6:10:01 AM:     publish: /opt/build/repo/.next
+6:10:01 AM:     publishOrigin: ui
+6:10:01 AM:   plugins:
+6:10:01 AM:     - inputs: {}
+6:10:01 AM:       origin: ui
+6:10:01 AM:       package: "@netlify/plugin-nextjs"
+6:10:01 AM: Build failed due to a user error: Build script returned non-zero exit code: 2
+6:10:01 AM: Failing build: Failed to build site
+6:10:02 AM: Finished processing build request in 32.041s
