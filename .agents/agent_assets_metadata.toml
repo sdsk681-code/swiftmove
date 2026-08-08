@@ -1,0 +1,9 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "vvGEa_nfqC-lJhjPAgZPD"
+uri = "file://swiftmove-project.zip"
+type = "unspecified"
+title = "SwiftMove — المشروع كامل"
+description = "آخر نسخة مع جميع الإصلاحات (بدون node_modules/dist)"
