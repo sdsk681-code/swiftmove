@@ -7,8 +7,14 @@ import { appRouter } from "../../artifacts/api-server/src/routers.js";
 
 export default async (req: Request) => {
   const url = new URL(req.url);
-  // Detect which base path the request came through
-  const endpoint = url.pathname.startsWith("/api/trpc") ? "/api/trpc" : "/trpc";
+  // Detect which base path the request came through.
+  // Requests may arrive via /trpc/*, /api/trpc/*, or the direct
+  // /.netlify/functions/trpc/* URL (used by the netlify.toml redirects).
+  const endpoint = url.pathname.startsWith("/.netlify/functions/trpc")
+    ? "/.netlify/functions/trpc"
+    : url.pathname.startsWith("/api/trpc")
+      ? "/api/trpc"
+      : "/trpc";
 
   return fetchRequestHandler({
     endpoint,
@@ -19,8 +25,4 @@ export default async (req: Request) => {
       console.error("tRPC error:", error);
     },
   });
-};
-
-export const config = {
-  path: "/trpc/*",
 };

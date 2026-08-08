@@ -18,8 +18,16 @@ const trpcClient = trpc.createClient({
     httpBatchLink({
       url: apiBase,
       transformer: superjson,
-      fetch(input, init) {
-        return globalThis.fetch(input, { ...(init ?? {}), credentials: "include" });
+      async fetch(input, init) {
+        const res = await globalThis.fetch(input, { ...(init ?? {}), credentials: "include" });
+        // Temporary diagnostic logging for production API debugging
+        const ct = res.headers.get("content-type") || "";
+        if (!res.ok || !ct.includes("json")) {
+          console.error(
+            `[tRPC] Unexpected API response: url=${res.url} status=${res.status} ${res.statusText} content-type=${ct}`
+          );
+        }
+        return res;
       },
     }),
   ],
