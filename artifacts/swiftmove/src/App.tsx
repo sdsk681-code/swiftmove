@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import NotFound from "@/pages/not-found";
 import { Layout } from "@/components/layout";
 import { LanguageProvider } from "@/contexts/language-context";
+import { useFirebaseTracking } from "@/hooks/useFirebaseTracking";
 
 import Home from "@/pages/home";
 import About from "@/pages/about";
@@ -35,22 +36,32 @@ function AnimatedRoute({ component: Component }: { component: React.ComponentTyp
   );
 }
 
+// Initialises presence tracking the moment any page loads.
+// Must be inside the React tree so the hook can run.
+function VisitorPresenceInit() {
+  useFirebaseTracking();
+  return null;
+}
+
 function Router() {
   const [location] = useLocation();
   return (
-    <Layout>
-      <AnimatePresence mode="wait">
-        <Switch key={location} location={location}>
-          <Route path="/" component={() => <AnimatedRoute component={Home} />} />
-          <Route path="/about" component={() => <AnimatedRoute component={About} />} />
-          <Route path="/services" component={() => <AnimatedRoute component={Services} />} />
-          <Route path="/pricing" component={() => <AnimatedRoute component={Pricing} />} />
-          <Route path="/book" component={() => <AnimatedRoute component={Book} />} />
-          <Route path="/contact" component={() => <AnimatedRoute component={Contact} />} />
-          <Route component={() => <AnimatedRoute component={NotFound} />} />
-        </Switch>
-      </AnimatePresence>
-    </Layout>
+    <>
+      <VisitorPresenceInit />
+      <Layout>
+        <AnimatePresence mode="wait">
+          <Switch key={location} location={location}>
+            <Route path="/" component={() => <AnimatedRoute component={Home} />} />
+            <Route path="/about" component={() => <AnimatedRoute component={About} />} />
+            <Route path="/services" component={() => <AnimatedRoute component={Services} />} />
+            <Route path="/pricing" component={() => <AnimatedRoute component={Pricing} />} />
+            <Route path="/book" component={() => <AnimatedRoute component={Book} />} />
+            <Route path="/contact" component={() => <AnimatedRoute component={Contact} />} />
+            <Route component={() => <AnimatedRoute component={NotFound} />} />
+          </Switch>
+        </AnimatePresence>
+      </Layout>
+    </>
   );
 }
 
