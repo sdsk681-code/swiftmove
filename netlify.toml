@@ -6,6 +6,7 @@
   NODE_VERSION = "20"
   PORT = "3000"
   BASE_PATH = "/"
+  VITE_TRPC_URL = "/trpc"
 
 [functions]
   directory = "netlify/functions"
