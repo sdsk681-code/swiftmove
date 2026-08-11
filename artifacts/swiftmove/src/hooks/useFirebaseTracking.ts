@@ -158,6 +158,10 @@ async function initTracking(): Promise<string> {
 
   _initPromise = (async () => {
     const docId = await createOrRestoreVisitorDoc();
+
+    // Empty string means anonymous auth is disabled — skip all Firebase writes
+    if (!docId) return "";
+
     await setupRtdbPresence(docId);
     await sendHeartbeat(docId);
 
