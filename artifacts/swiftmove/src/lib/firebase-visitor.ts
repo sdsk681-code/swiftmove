@@ -1,6 +1,6 @@
-// Firebase config shared with swiftmove-L dashboard
-// Both projects use the SAME Firebase project (swiftmove-l)
-// so visitor data flows directly into the dashboard
+// Firebase config — values come from VITE_FIREBASE_* environment variables.
+// To change the Firebase project, update those variables in Replit → Secrets & Env Vars
+// and restart the dev server. No code changes needed.
 
 import { initializeApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
@@ -10,14 +10,14 @@ import { getAuth, signInAnonymously, onAuthStateChanged, type User } from "fireb
 const FIREBASE_APP_NAME = "swiftmove-visitor";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAusNou7Mt8kURWl40_BA1QBuXz2CFuKzw",
-  authDomain: "saffsa-aa.firebaseapp.com",
-  databaseURL: "https://saffsa-aa-default-rtdb.firebaseio.com",
-  projectId: "saffsa-aa",
-  storageBucket: "saffsa-aa.firebasestorage.app",
-  messagingSenderId: "283994765221",
-  appId: "1:283994765221:web:fdf3435629a4bfd239da4c",
-  measurementId: "G-FBX7B3HGDC",
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  databaseURL:       import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId:             import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId:     import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
 const existingApp = getApps().find((a) => a.name === FIREBASE_APP_NAME);
