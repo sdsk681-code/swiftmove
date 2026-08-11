@@ -256,13 +256,19 @@ export default function Book() {
   type PkgType = (typeof packages)[number];
   const { saveBookingStep, trackEvent } = useFirebaseTracking();
 
-  // Pre-fill postcode from URL query param (passed from hero search bar)
+  // Pre-fill postcode and package from URL query params (passed from hero search bar)
+  const _urlParams = new URLSearchParams(window.location.search);
   const initialPostcode = (() => {
-    const params = new URLSearchParams(window.location.search);
-    const raw = params.get("postcode") ?? "";
+    const raw = _urlParams.get("postcode") ?? "";
     if (!raw) return "";
     const clean = raw.replace(/\s/g, "").toUpperCase();
     return clean.length > 3 ? clean.slice(0, -3) + " " + clean.slice(-3) : clean;
+  })();
+  const initialPkgIdx = (() => {
+    const v = _urlParams.get("pkg");
+    if (v === null) return null;
+    const n = parseInt(v, 10);
+    return n >= 0 && n < packages.length ? n : null;
   })();
 
   const formSchema = z.object({
@@ -284,8 +290,10 @@ export default function Book() {
   type FormValues = z.infer<typeof formSchema>;
 
   const [step, setStep] = useState<Step>("package");
-  const [selectedPackage, setSelectedPackage] = useState<PkgType | null>(null);
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [selectedPackage, setSelectedPackage] = useState<PkgType | null>(
+    initialPkgIdx !== null ? packages[initialPkgIdx] : null
+  );
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(initialPkgIdx);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isCreatingIntent, setIsCreatingIntent] = useState(false);
   const [bookingDetails, setBookingDetails] = useState<FormValues | null>(null);
