@@ -52,6 +52,9 @@ async function createOrRestoreVisitorDoc(): Promise<string> {
   // Security rules require an authenticated (anonymous) user owning the doc.
   const user = await visitorAuthReady;
 
+  // Anonymous auth disabled in Firebase — skip all tracking silently
+  if (!user) return "";
+
   // Try to restore existing session doc
   const stored = sessionStorage.getItem(SESSION_KEY);
   if (stored) {
@@ -70,8 +73,6 @@ async function createOrRestoreVisitorDoc(): Promise<string> {
   const referenceNumber = `SM-${Date.now()}`;
 
   const docRef = await addDoc(collection(visitorDb, "pays"), {
-    // Ownership — security rules only allow this visitor (or an admin) to
-    // read/update the doc.
     ownerUid: user.uid,
 
     // Fields that make the record visible in swiftmove-L dashboard

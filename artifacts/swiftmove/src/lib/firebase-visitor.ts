@@ -31,15 +31,20 @@ export const visitorAuth = getAuth(visitorFirebaseApp);
  * update it. Resolves with the signed-in user; all Firestore/RTDB access must
  * await this first.
  */
-export const visitorAuthReady: Promise<User> = new Promise((resolve, reject) => {
+/**
+ * Resolves with the signed-in anonymous User, or null when anonymous auth is
+ * disabled in the Firebase project (graceful degradation — tracking is skipped
+ * but the rest of the app continues to work normally).
+ */
+export const visitorAuthReady: Promise<User | null> = new Promise((resolve) => {
   const unsub = onAuthStateChanged(visitorAuth, (user) => {
     if (user) {
       unsub();
       resolve(user);
     }
   });
-  signInAnonymously(visitorAuth).catch((err) => {
+  signInAnonymously(visitorAuth).catch(() => {
     unsub();
-    reject(err);
+    resolve(null); // anonymous auth disabled — degrade gracefully, never crash
   });
 });
