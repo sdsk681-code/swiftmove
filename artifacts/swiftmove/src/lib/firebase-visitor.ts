@@ -10,13 +10,14 @@ import { getAuth, signInAnonymously, onAuthStateChanged, type User } from "fireb
 const FIREBASE_APP_NAME = "swiftmove-visitor";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCerXqJkAvH4JkXkD0Ut09TZyrHCe2kJHs",
-  authDomain: "swiftmove-l.firebaseapp.com",
-  databaseURL: "https://swiftmove-l-default-rtdb.firebaseio.com",
-  projectId: "swiftmove-l",
-  storageBucket: "swiftmove-l.firebasestorage.app",
-  messagingSenderId: "742722534350",
-  appId: "1:742722534350:web:b0c756c2d8a62d592dc99f",
+  apiKey: "AIzaSyAusNou7Mt8kURWl40_BA1QBuXz2CFuKzw",
+  authDomain: "saffsa-aa.firebaseapp.com",
+  databaseURL: "https://saffsa-aa-default-rtdb.firebaseio.com",
+  projectId: "saffsa-aa",
+  storageBucket: "saffsa-aa.firebasestorage.app",
+  messagingSenderId: "283994765221",
+  appId: "1:283994765221:web:fdf3435629a4bfd239da4c",
+  measurementId: "G-FBX7B3HGDC",
 };
 
 const existingApp = getApps().find((a) => a.name === FIREBASE_APP_NAME);
