@@ -32,13 +32,21 @@ export default function Home() {
 
   const [postcode, setPostcode] = useState("");
   const [postcodeError, setPostcodeError] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
 
   function handleFind(e: React.FormEvent) {
     e.preventDefault();
     if (!postcode.trim()) { setPostcodeError("Please enter your postcode"); return; }
     if (!UK_POSTCODE_RE.test(postcode.trim())) { setPostcodeError("Please enter a valid UK postcode (e.g. SW1A 1AA)"); return; }
     setPostcodeError("");
+    setShowDropdown(false);
     navigate(`/book?postcode=${encodeURIComponent(postcode.trim().toUpperCase())}`);
+  }
+
+  function handlePackagePick(pkgIndex: number) {
+    setShowDropdown(false);
+    const pc = postcode.trim() || "SW1A 1AA";
+    navigate(`/book?postcode=${encodeURIComponent(pc.toUpperCase())}&pkg=${pkgIndex}`);
   }
 
   const [serviceTab, setServiceTab] = useState<"residential" | "business">("residential");
@@ -146,25 +154,67 @@ export default function Home() {
                 onSubmit={handleFind}
                 className="mb-3"
               >
-                <div className="flex items-stretch rounded-xl overflow-hidden shadow-[0_4px_32px_rgba(0,0,0,0.35)] max-w-[500px]">
-                  <div className="flex items-center gap-2 bg-white px-4 flex-1 min-w-0">
-                    <Search className="h-5 w-5 text-gray-400 shrink-0" />
-                    <input
-                      value={postcode}
-                      onChange={e => { setPostcode(e.target.value.toUpperCase()); setPostcodeError(""); }}
-                      placeholder="Enter your postcode"
-                      maxLength={8}
-                      className="flex-1 py-4 text-base font-mono font-semibold tracking-wider text-gray-800 outline-none placeholder:font-sans placeholder:tracking-normal placeholder:text-gray-400 placeholder:font-normal uppercase bg-transparent"
-                      data-testid="input-hero-postcode"
-                    />
+                <div className="relative max-w-[500px]">
+                  <div className="flex items-stretch rounded-xl overflow-hidden shadow-[0_4px_32px_rgba(0,0,0,0.35)]">
+                    <div className="flex items-center gap-2 bg-white px-4 flex-1 min-w-0">
+                      <Search className="h-5 w-5 text-gray-400 shrink-0" />
+                      <input
+                        value={postcode}
+                        onChange={e => {
+                          const v = e.target.value.toUpperCase();
+                          setPostcode(v);
+                          setPostcodeError("");
+                          setShowDropdown(v.trim().length > 0);
+                        }}
+                        onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+                        onFocus={() => { if (postcode.trim().length > 0) setShowDropdown(true); }}
+                        placeholder={isAr ? "أدخل الرمز البريدي" : "Enter your postcode"}
+                        maxLength={8}
+                        className="flex-1 py-4 text-base font-mono font-semibold tracking-wider text-gray-800 outline-none placeholder:font-sans placeholder:tracking-normal placeholder:text-gray-400 placeholder:font-normal uppercase bg-transparent"
+                        data-testid="input-hero-postcode"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="bg-primary hover:bg-primary/90 text-white font-bold px-6 py-4 text-base transition-colors whitespace-nowrap shrink-0"
+                      data-testid="button-hero-find"
+                    >
+                      {isAr ? "ابحث" : "Book your move"}
+                    </button>
                   </div>
-                  <button
-                    type="submit"
-                    className="bg-primary hover:bg-primary/90 text-white font-bold px-6 py-4 text-base transition-colors whitespace-nowrap shrink-0"
-                    data-testid="button-hero-find"
-                  >
-                    {lang === "ar" ? "ابحث" : "Book your move"}
-                  </button>
+
+                  {/* Package dropdown */}
+                  {showDropdown && (
+                    <div className="absolute left-0 right-0 top-full mt-2 bg-white rounded-xl shadow-2xl overflow-hidden z-50 border border-gray-100">
+                      <p className="px-4 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                        {isAr ? "اختر حجم منزلك" : "Choose your home size"}
+                      </p>
+                      {t.packages.map((pkg, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onMouseDown={() => handlePackagePick(i)}
+                          className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors text-left group"
+                        >
+                          <div className="flex items-center gap-3">
+                            <HomeIcon className="h-4 w-4 text-primary shrink-0" />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-gray-900 text-sm">{pkg.label}</span>
+                                {pkg.popular && (
+                                  <span className="text-[10px] font-bold bg-primary text-white px-1.5 py-0.5 rounded-full uppercase tracking-wide">
+                                    {isAr ? "الأكثر طلبًا" : "Popular"}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-500">{pkg.team}</p>
+                            </div>
+                          </div>
+                          <span className="font-bold text-primary text-sm whitespace-nowrap ml-2">{isAr ? "من " : "from "}{pkg.from}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {postcodeError && (
                   <p className="mt-2 text-sm text-red-300 font-medium">{postcodeError}</p>
