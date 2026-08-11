@@ -8,10 +8,12 @@ import "./index.css";
 
 const queryClient = new QueryClient();
 
-// VITE_TRPC_URL overrides the default (set to /trpc on Netlify, or any external URL)
+// VITE_TRPC_URL overrides the default.
+// Netlify build: VITE_TRPC_URL=/trpc (set in netlify.toml)
+// Replit dev/prod: falls back to /api/trpc (Replit routes /api → api-server port 8080)
 const apiBase =
   import.meta.env.VITE_TRPC_URL ||
-  `${window.location.origin}/api-server/api/trpc`;
+  `/api/trpc`;
 
 const trpcClient = trpc.createClient({
   links: [
