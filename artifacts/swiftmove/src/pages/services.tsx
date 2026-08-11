@@ -7,12 +7,12 @@ import { useLanguage } from "@/hooks/use-language";
 
 const serviceIcons = [Home, Truck, Sparkles, Key, Clock, Briefcase];
 const serviceImages = [
-  "/manus-storage/service-house-removals_7c8460fa.png",
-  "/manus-storage/service-furniture-moving_0cc20f99.png",
-  "/manus-storage/service-cleaning_17b91903.png",
-  "/manus-storage/service-end-of-tenancy_238dd391.png",
-  "/manus-storage/service-same-day_77b0b97d.png",
-  "/manus-storage/service-business-delivery_c2c57083.png",
+  "/images/service-house-removals.jpg",
+  "/images/service-furniture-moving.jpg",
+  "/images/service-cleaning.jpg",
+  "/images/service-end-of-tenancy.jpg",
+  "/images/service-same-day.jpg",
+  "/images/service-business-delivery.jpg",
 ];
 const serviceAccents = [
   "from-blue-500/20 to-indigo-600/10",

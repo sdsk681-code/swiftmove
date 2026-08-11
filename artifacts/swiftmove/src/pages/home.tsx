@@ -92,7 +92,7 @@ export default function Home() {
         {/* Full-bleed background */}
         <div className="absolute inset-0 z-0">
           <img
-            src="/manus-storage/service-house-removals_7c8460fa.png"
+            src="/images/service-house-removals.jpg"
             alt="Professional house removal team"
             className="h-full w-full object-cover object-center"
           />

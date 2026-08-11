@@ -115,7 +115,7 @@ export default function About() {
             <motion.div {...fadeUpView()} className="relative">
               <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-blue-500/15 to-indigo-600/10 blur-2xl" />
               <div className="relative aspect-[4/3] overflow-hidden rounded-2xl shadow-[0_24px_60px_rgba(16,30,54,0.16)] ring-1 ring-black/5">
-                <img src="/manus-storage/service-house-removals_7c8460fa.png" alt="Our professional team" className="h-full w-full object-cover" />
+                <img src="/images/service-house-removals.jpg" alt="Our professional team" className="h-full w-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
               </div>
             </motion.div>
