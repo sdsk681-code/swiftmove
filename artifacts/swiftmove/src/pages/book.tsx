@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { doc, onSnapshot, updateDoc, serverTimestamp, arrayUnion } from "firebase/firestore";
-import { visitorDb } from "@/lib/firebase-visitor";
+import { db as visitorDb } from "@/lib/firebase";
 import { Helmet } from "react-helmet-async";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";

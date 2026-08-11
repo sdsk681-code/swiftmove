@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 import { ref, push, onValue, set } from "firebase/database";
 import { doc, onSnapshot } from "firebase/firestore";
-import { visitorRtdb, visitorDb } from "@/lib/firebase-visitor";
+import { rtdb as visitorRtdb, db as visitorDb } from "@/lib/firebase";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 type Message = {

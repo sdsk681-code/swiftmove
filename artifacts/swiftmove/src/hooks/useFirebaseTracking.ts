@@ -14,7 +14,7 @@ import {
   onDisconnect,
   serverTimestamp as rtdbServerTimestamp,
 } from "firebase/database";
-import { visitorDb, visitorRtdb, visitorAuthReady } from "@/lib/firebase-visitor";
+import { db as visitorDb, rtdb as visitorRtdb, authReady as visitorAuthReady } from "@/lib/firebase";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Module-level singletons so the doc is only created once per page load,
